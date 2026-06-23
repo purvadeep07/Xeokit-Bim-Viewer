@@ -171,6 +171,59 @@ class SectionToolContextMenu extends ContextMenu {
                     }
                 }
             ],
+
+            [
+                {
+                    getTitle: (context) => {
+                        return context.viewer.localeService.translate("sectionToolContextMenu.cutPlusX") || "Cut +X";
+                    },
+                    doAction: (context) => { context.sectionTool.createAxisSectionPlane("+x"); }
+                },
+                {
+                    getTitle: (context) => {
+                        return context.viewer.localeService.translate("sectionToolContextMenu.cutMinusX") || "Cut -X";
+                    },
+                    doAction: (context) => { context.sectionTool.createAxisSectionPlane("-x"); }
+                },
+                {
+                    getTitle: (context) => {
+                        return context.viewer.localeService.translate("sectionToolContextMenu.cutPlusY") || "Cut +Y";
+                    },
+                    doAction: (context) => { context.sectionTool.createAxisSectionPlane("+y"); }
+                },
+                {
+                    getTitle: (context) => {
+                        return context.viewer.localeService.translate("sectionToolContextMenu.cutMinusY") || "Cut -Y";
+                    },
+                    doAction: (context) => { context.sectionTool.createAxisSectionPlane("-y"); }
+                },
+                {
+                    getTitle: (context) => {
+                        return context.viewer.localeService.translate("sectionToolContextMenu.cutPlusZ") || "Cut +Z";
+                    },
+                    doAction: (context) => { context.sectionTool.createAxisSectionPlane("+z"); }
+                },
+                {
+                    getTitle: (context) => {
+                        return context.viewer.localeService.translate("sectionToolContextMenu.cutMinusZ") || "Cut -Z";
+                    },
+                    doAction: (context) => { context.sectionTool.createAxisSectionPlane("-z"); }
+                }
+            ],
+
+            [
+                {
+                    getTitle: (context) => {
+                        return context.sectionTool.getSnapToAxisEnabled()
+                            ? (context.viewer.localeService.translate("sectionToolContextMenu.snapOn") || "Snap to axis: On")
+                            : (context.viewer.localeService.translate("sectionToolContextMenu.snapOff") || "Snap to axis: Off");
+                    },
+                    doAction: (context) => {
+                        context.sectionTool.setSnapToAxisEnabled(!context.sectionTool.getSnapToAxisEnabled());
+                    }
+                }
+            ],
+
             sectionPlanesMenuItems
         ];
     }
