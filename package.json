@@ -11,7 +11,8 @@
     "/dist/messages.js"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "build": "rollup --config rollup.config.js && rollup --config rollup.dev.config.js && copyfiles -f locales/messages.js ./dist && copyfiles -f xeokit-bim-viewer.css ./dist",
     "docs": "./node_modules/.bin/esdoc && node docs/.scripts/fix-doc-links.js",
     "serve": "http-server . -p 8080 ",
@@ -66,7 +67,8 @@
     "esdoc": "^1.1.0",
     "esdoc-standard-plugin": "^1.0.0",
     "rollup": "^4.39.0",
-    "rollup-plugin-import-css": "^3.5.8"
+    "rollup-plugin-import-css": "^3.5.8",
+    "vitest": "^2.1.0"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
