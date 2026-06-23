@@ -1,7 +1,7 @@
 import {Controller} from "../Controller.js";
 import {SectionToolContextMenu} from "./../contextMenus/SectionToolContextMenu.js";
 import {math, SectionPlanesPlugin} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
-import {axisToDir} from "./sectionAxisUtils.js";
+import {axisToDir, nearestAxisSnap} from "./sectionAxisUtils.js";
 
 /** @private */
 class SectionTool extends Controller { // XX
@@ -125,6 +125,10 @@ class SectionTool extends Controller { // XX
             this._updateSectionPlanesCount();
         });
 
+        this._snapToAxisEnabled = true;
+        this._snapThresholdDeg = 12;
+        this._initAxisSnap();
+
         this._initSectionMode();
     }
 
@@ -163,6 +167,44 @@ class SectionTool extends Controller { // XX
         if (this._counterElement) {
             this._counterElement.innerText = ("" + this.getNumSections());
         }
+    }
+
+    _initAxisSnap() {
+        const trySnap = () => {
+            if (!this._snapToAxisEnabled) {
+                return;
+            }
+            const shownId = this._sectionPlanesPlugin.getShownControl();
+            if (!shownId) {
+                return;
+            }
+            const sectionPlane = this.viewer.scene.sectionPlanes[shownId];
+            if (!sectionPlane) {
+                return;
+            }
+            const snapped = nearestAxisSnap(sectionPlane.dir, this._snapThresholdDeg);
+            if (snapped) {
+                sectionPlane.dir = snapped; // Plugin re-syncs the gizmo via its "dir" binding.
+            }
+        };
+        this._containerElement.addEventListener("mouseup", trySnap);
+        this._containerElement.addEventListener("touchend", trySnap);
+    }
+
+    /**
+     * Sets whether the gizmo snaps the cut normal to the nearest principal axis on release.
+     * @param {Boolean} enabled
+     */
+    setSnapToAxisEnabled(enabled) {
+        this._snapToAxisEnabled = !!enabled;
+    }
+
+    /**
+     * Gets whether axis snapping is enabled.
+     * @returns {Boolean}
+     */
+    getSnapToAxisEnabled() {
+        return this._snapToAxisEnabled;
     }
 
     getNumSections() {
