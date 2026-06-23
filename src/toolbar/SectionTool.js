@@ -1,6 +1,7 @@
 import {Controller} from "../Controller.js";
 import {SectionToolContextMenu} from "./../contextMenus/SectionToolContextMenu.js";
 import {math, SectionPlanesPlugin} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
+import {axisToDir} from "./sectionAxisUtils.js";
 
 /** @private */
 class SectionTool extends Controller { // XX
@@ -175,6 +176,29 @@ class SectionTool extends Controller { // XX
 
     flipSections() {
         this._sectionPlanesPlugin.flipSectionPlanes();
+    }
+
+    /**
+     * Creates a single axis-aligned section plane at the model center, replacing
+     * any existing section planes, and shows its editing gizmo.
+     *
+     * @param {String} axis One of "+x","-x","+y","-y","+z","-z".
+     */
+    createAxisSectionPlane(axis) {
+        const scene = this.viewer.scene;
+        const aabb = scene.aabb;
+        // Guard: empty/degenerate AABB means no model geometry is loaded.
+        if (!aabb || aabb[0] > aabb[3] || aabb[1] > aabb[4] || aabb[2] > aabb[5]) {
+            return;
+        }
+        this._sectionPlanesPlugin.clear();
+        const center = math.getAABB3Center(aabb, math.vec3());
+        const sectionPlane = this._sectionPlanesPlugin.createSectionPlane({
+            pos: center,
+            dir: axisToDir(axis)
+        });
+        this._sectionPlanesPlugin.showControl(sectionPlane.id);
+        this._updateSectionPlanesCount();
     }
 
     enableSections() {
