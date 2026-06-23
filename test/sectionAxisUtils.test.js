@@ -50,6 +50,16 @@ describe("nearestAxisSnap", () => {
         expect(nearestAxisSnap([1, 0, 0], 12)).toEqual([1, 0, 0]);
     });
 
+    it("snaps just inside the threshold", () => {
+        const dir = [0, Math.sin(11.5 * Math.PI / 180), Math.cos(11.5 * Math.PI / 180)];
+        expect(nearestAxisSnap(dir, 12)).toEqual([0, 0, 1]);
+    });
+
+    it("does not snap just outside the threshold", () => {
+        const dir = [0, Math.sin(12.5 * Math.PI / 180), Math.cos(12.5 * Math.PI / 180)];
+        expect(nearestAxisSnap(dir, 12)).toBeNull();
+    });
+
     it("returns null for a zero-length direction", () => {
         expect(nearestAxisSnap([0, 0, 0], 12)).toBeNull();
     });

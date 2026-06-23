@@ -3,6 +3,9 @@ import {SectionToolContextMenu} from "./../contextMenus/SectionToolContextMenu.j
 import {math, SectionPlanesPlugin} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
 import {axisToDir, nearestAxisSnap} from "./sectionAxisUtils.js";
 
+// Max angle (degrees) between the cut normal and a principal axis for snap-on-release.
+const SNAP_THRESHOLD_DEG = 12;
+
 /** @private */
 class SectionTool extends Controller { // XX
 
@@ -126,7 +129,7 @@ class SectionTool extends Controller { // XX
         });
 
         this._snapToAxisEnabled = true;
-        this._snapThresholdDeg = 12;
+        this._snapThresholdDeg = SNAP_THRESHOLD_DEG;
         this._initAxisSnap();
 
         this._initSectionMode();

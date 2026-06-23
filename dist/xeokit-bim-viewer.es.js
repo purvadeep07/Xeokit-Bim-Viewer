@@ -120474,14 +120474,16 @@ class SectionToolContextMenu extends ContextMenu {
  * @private
  */
 
-const AXES = [
-    {key: "+x", dir: [1, 0, 0]},
-    {key: "-x", dir: [-1, 0, 0]},
-    {key: "+y", dir: [0, 1, 0]},
-    {key: "-y", dir: [0, -1, 0]},
-    {key: "+z", dir: [0, 0, 1]},
-    {key: "-z", dir: [0, 0, -1]}
-];
+// Frozen so the exported reference can't be mutated by consumers. The public
+// functions still return fresh arrays via .slice(), so callers get writable copies.
+const AXES = Object.freeze([
+    Object.freeze({key: "+x", dir: Object.freeze([1, 0, 0])}),
+    Object.freeze({key: "-x", dir: Object.freeze([-1, 0, 0])}),
+    Object.freeze({key: "+y", dir: Object.freeze([0, 1, 0])}),
+    Object.freeze({key: "-y", dir: Object.freeze([0, -1, 0])}),
+    Object.freeze({key: "+z", dir: Object.freeze([0, 0, 1])}),
+    Object.freeze({key: "-z", dir: Object.freeze([0, 0, -1])})
+]);
 
 const _axisByKey = {};
 for (const a of AXES) {
@@ -120534,6 +120536,9 @@ function nearestAxisSnap(dir, thresholdDeg) {
     }
     return null;
 }
+
+// Max angle (degrees) between the cut normal and a principal axis for snap-on-release.
+const SNAP_THRESHOLD_DEG = 12;
 
 /** @private */
 class SectionTool extends Controller { // XX
@@ -120658,7 +120663,7 @@ class SectionTool extends Controller { // XX
         });
 
         this._snapToAxisEnabled = true;
-        this._snapThresholdDeg = 12;
+        this._snapThresholdDeg = SNAP_THRESHOLD_DEG;
         this._initAxisSnap();
 
         this._initSectionMode();
