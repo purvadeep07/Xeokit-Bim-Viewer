@@ -5,6 +5,7 @@ import {BusyModal} from "./BusyModal.js";
 import {ResetAction} from "./toolbar/ResetAction.js";
 import {FitAction} from "./toolbar/FitAction.js";
 import {FirstPersonMode} from "./toolbar/FirstPersonMode.js";
+import {FirstPersonControls} from "./FirstPersonControls.js";
 import {HideTool} from "./toolbar/HideTool.js";
 import {SelectionTool} from "./toolbar/SelectionTool.js";
 import {ShowSpacesMode} from "./toolbar/ShowSpacesMode.js";
@@ -366,6 +367,9 @@ class BIMViewer extends Controller {
 
             this.setFirstPersonModeActive = (active) => {
                 bimViewer.viewer.cameraControl.navMode = active ? "firstPerson" : (threeDActive ? "orbit" : "planView");
+                if (bimViewer._firstPersonControls) {
+                    bimViewer._firstPersonControls.setActive(active);
+                }
                 firstPersonActive = active;
             };
 
@@ -386,6 +390,10 @@ class BIMViewer extends Controller {
             buttonElement: toolbarElement.querySelector(".xeokit-firstPerson"),
             cameraControlNavModeMediator,
             active: false
+        });
+
+        this._firstPersonControls = new FirstPersonControls(this, {
+            // config: { walkSpeed, flySpeed, eyeHeight, ... }  // optional overrides
         });
 
         this._hideTool = new HideTool(this, {
