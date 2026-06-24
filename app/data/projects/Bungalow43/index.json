@@ -1,0 +1,19 @@
+{
+  "id": "Bungalow43",
+  "name": "4.3 Bungalow",
+  "models": [
+    {
+      "id": "design",
+      "name": "Main Design Model"
+    }
+  ],
+  "viewerConfigs": {
+    "backgroundColor": [0.95, 0.95, 0.95]
+  },
+  "viewerContent": {
+    "modelsLoaded": ["design"]
+  },
+  "viewerState": {
+    "tabOpen": "objects"
+  }
+}

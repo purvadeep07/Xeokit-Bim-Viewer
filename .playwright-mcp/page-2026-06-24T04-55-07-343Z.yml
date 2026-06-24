@@ -1,0 +1,46 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: 
+  - generic [ref=e3]: 
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - link "Models" [ref=e7] [cursor=pointer]:
+        - /url: "#"
+      - generic [ref=e8]:
+        - generic:
+          - button "Load all"
+          - button "Unload all" [ref=e9]
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - checkbox [checked] [ref=e12]
+            - generic [ref=e13]: House 1
+          - generic [ref=e14]:
+            - checkbox [checked] [ref=e15]
+            - generic [ref=e16]: House 2
+    - link "Objects" [ref=e18] [cursor=pointer]:
+      - /url: "#"
+    - link "Classes" [ref=e20] [cursor=pointer]:
+      - /url: "#"
+    - link "Storeys" [ref=e22] [cursor=pointer]:
+      - /url: "#"
+  - generic:
+    - generic:
+      - button "" [ref=e23]
+      - group:
+        - button "" [ref=e24]
+        - button "" [ref=e25]
+        - button "" [ref=e26]
+        - button "" [ref=e27]
+        - button "" [ref=e28]
+      - group:
+        - button "" [ref=e29]
+        - button "" [ref=e30]
+        - button "" [ref=e31]
+        - button "" [ref=e32]
+        - button "" [ref=e33]
+        - button " 0" [ref=e34]:
+          - text: 
+          - generic [ref=e37]: "0"
+  - generic [ref=e40]:
+    - link "Properties" [ref=e41] [cursor=pointer]:
+      - /url: "#"
+    - paragraph [ref=e45]: No object inspected. Right-click or long-tab an object and select 'Inspect Properties' to view its properties here.

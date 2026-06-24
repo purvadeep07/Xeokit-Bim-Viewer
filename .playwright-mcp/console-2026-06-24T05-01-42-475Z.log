@@ -1,0 +1,6 @@
+[     544ms] TypeError: Cannot read properties of null (reading 'addEventListener')
+    at ModelsExplorer._buildModelsMenu (http://localhost:8080/dist/xeokit-bim-viewer.es.js:121158:22)
+    at ModelsExplorer._parseProject (http://localhost:8080/dist/xeokit-bim-viewer.es.js:121131:14)
+    at http://localhost:8080/dist/xeokit-bim-viewer.es.js:121112:18
+    at XMLHttpRequest.<anonymous> (http://localhost:8080/dist/xeokit-bim-viewer.es.js:6684:13)
+[     584ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8080/favicon.ico:0

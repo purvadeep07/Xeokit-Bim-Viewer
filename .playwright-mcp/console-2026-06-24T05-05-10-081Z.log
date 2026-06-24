@@ -1,0 +1,2 @@
+[    1013ms] [ERROR] [xeokit plugin TreeViewPlugin]: Failed to build storeys hierarchy @ http://localhost:8080/dist/xeokit-bim-viewer.es.js:68140
+[    1043ms] [WARNING] [WARN] [Component '__14']: planView property is deprecated - replaced with navMode @ http://localhost:8080/dist/xeokit-bim-viewer.es.js:7694

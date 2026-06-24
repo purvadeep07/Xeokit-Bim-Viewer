@@ -1,6 +1,14 @@
 {
   "projects": [
     {
+      "id": "Bungalow43",
+      "name": "4.3 Bungalow"
+    },
+    {
+      "id": "MyBungalow",
+      "name": "My Custom Bungalow Project"
+    },
+    {
       "id": "Duplex",
       "name": "Duplex"
     },

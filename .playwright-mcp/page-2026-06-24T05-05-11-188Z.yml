@@ -1,0 +1,70 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: 
+  - generic [ref=e3]: 
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - link "Models" [ref=e7] [cursor=pointer]:
+        - /url: "#"
+      - generic [ref=e8]:
+        - generic:
+          - button "Load all" [ref=e9]
+          - button "Unload all" [ref=e10]
+        - generic [ref=e11]:
+          - generic [ref=e12]:
+            - checkbox [ref=e13]
+            - generic [ref=e14]: autzen
+          - generic [ref=e15]:
+            - checkbox [ref=e16]
+            - generic [ref=e17]: DenHaag_01
+          - generic [ref=e18]:
+            - checkbox [ref=e19]
+            - generic [ref=e20]: Dormitory-SECU.v9
+          - generic [ref=e21]:
+            - checkbox [ref=e22]
+            - generic [ref=e23]: Duplex
+          - generic [ref=e24]:
+            - checkbox [ref=e25]
+            - generic [ref=e26]: IfcOpenHouse2x3
+          - generic [ref=e27]:
+            - checkbox [ref=e28]
+            - generic [ref=e29]: IfcOpenHouse4
+          - generic [ref=e30]:
+            - checkbox [ref=e31]
+            - generic [ref=e32]: indoor.0.1
+          - generic [ref=e33]:
+            - checkbox [checked] [ref=e34]
+            - generic [ref=e35]: LoD3_Railway
+          - generic [ref=e36]:
+            - checkbox [ref=e37]
+            - generic [ref=e38]: MAP
+          - generic [ref=e39]:
+            - checkbox [ref=e40]
+            - generic [ref=e41]: VM05_2009
+    - link "Objects" [ref=e43] [cursor=pointer]:
+      - /url: "#"
+    - link "Classes" [ref=e45] [cursor=pointer]:
+      - /url: "#"
+    - link "Storeys" [ref=e47] [cursor=pointer]:
+      - /url: "#"
+  - generic:
+    - generic:
+      - button "" [ref=e48]
+      - group:
+        - button "" [ref=e49]
+        - button "" [ref=e50]
+        - button "" [ref=e51]
+        - button "" [ref=e52]
+        - button "" [ref=e53]
+      - group:
+        - button "" [ref=e54]
+        - button "" [ref=e55]
+        - button "" [ref=e56]
+        - button "" [ref=e57]
+        - button "" [ref=e58]
+        - button " 0" [ref=e59]:
+          - text: 
+          - generic [ref=e62]: "0"
+  - generic [ref=e65]:
+    - link "Properties" [ref=e66] [cursor=pointer]:
+      - /url: "#"
+    - paragraph [ref=e70]: No object inspected. Right-click or long-tab an object and select 'Inspect Properties' to view its properties here.

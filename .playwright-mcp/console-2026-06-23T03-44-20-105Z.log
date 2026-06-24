@@ -1,0 +1,2 @@
+[    1170ms] [WARNING] [WARN] setConfig() - unsupported configuration: 'caps' @ http://localhost:8080/dist/xeokit-bim-viewer.es.js:119599
+[    1775ms] [WARNING] [WARN] [Component '__14']: planView property is deprecated - replaced with navMode @ http://localhost:8080/dist/xeokit-bim-viewer.es.js:7694

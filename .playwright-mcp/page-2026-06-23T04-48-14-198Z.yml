@@ -1,0 +1,147 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]: 
+  - generic [ref=e3]: 
+  - generic [ref=e5]:
+    - link "Models" [ref=e7] [cursor=pointer]:
+      - /url: "#"
+    - link "Objects" [ref=e9] [cursor=pointer]:
+      - /url: "#"
+    - generic [ref=e10]:
+      - link "Classes" [ref=e11] [cursor=pointer]:
+        - /url: "#"
+      - generic [ref=e12]:
+        - generic:
+          - button "Show all" [ref=e13]
+          - button "Hide all" [ref=e14]
+        - list [ref=e16]:
+          - listitem [ref=e17]:
+            - link "-" [ref=e18] [cursor=pointer]:
+              - /url: "#"
+            - checkbox [checked] [ref=e19]
+            - generic [ref=e20]: Duplex MEP
+            - list [ref=e21]:
+              - listitem [ref=e22]:
+                - link "+" [ref=e23] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e24]
+                - generic [ref=e25]: IfcEnergyConversionDevice
+              - listitem [ref=e26]:
+                - link "+" [ref=e27] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e28]
+                - generic [ref=e29]: IfcFlowTerminal
+              - listitem [ref=e30]:
+                - link "+" [ref=e31] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e32]
+                - generic [ref=e33]: IfcFlowFitting
+              - listitem [ref=e34]:
+                - link "+" [ref=e35] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e36]
+                - generic [ref=e37]: IfcDistributionControlElement
+              - listitem [ref=e38]:
+                - link "+" [ref=e39] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e40]
+                - generic [ref=e41]: IfcFlowController
+              - listitem [ref=e42]:
+                - link "+" [ref=e43] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e44]
+                - generic [ref=e45]: IfcFlowSegment
+              - listitem [ref=e46]:
+                - link "+" [ref=e47] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e48]
+                - generic [ref=e49]: IfcFlowMovingDevice
+          - listitem [ref=e50]:
+            - link "-" [ref=e51] [cursor=pointer]:
+              - /url: "#"
+            - checkbox [checked] [ref=e52]
+            - generic [ref=e53]: Duplex Design
+            - list [ref=e54]:
+              - listitem [ref=e55]:
+                - link "+" [ref=e56] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e57]
+                - generic [ref=e58]: IfcFurnishingElement
+              - listitem [ref=e59]:
+                - link "+" [ref=e60] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e61]
+                - generic [ref=e62]: IfcSlab
+              - listitem [ref=e63]:
+                - link "+" [ref=e64] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e65]
+                - generic [ref=e66]: IfcWallStandardCase
+              - listitem [ref=e67]:
+                - link "+" [ref=e68] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e69]
+                - generic [ref=e70]: IfcWall
+              - listitem [ref=e71]:
+                - link "+" [ref=e72] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e73]
+                - generic [ref=e74]: IfcDoor
+              - listitem [ref=e75]:
+                - link "+" [ref=e76] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e77]
+                - generic [ref=e78]: IfcBeam
+              - listitem [ref=e79]:
+                - link "+" [ref=e80] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e81]
+                - generic [ref=e82]: IfcWindow
+              - listitem [ref=e83]:
+                - link "+" [ref=e84] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e85]
+                - generic [ref=e86]: IfcCovering
+              - listitem [ref=e87]:
+                - link "+" [ref=e88] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e89]
+                - generic [ref=e90]: IfcRailing
+              - listitem [ref=e91]:
+                - link "+" [ref=e92] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e93]
+                - generic [ref=e94]: IfcStairFlight
+              - listitem [ref=e95]:
+                - link "+" [ref=e96] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e97]
+                - generic [ref=e98]: IfcMember
+              - listitem [ref=e99]:
+                - link "+" [ref=e100] [cursor=pointer]:
+                  - /url: "#"
+                - checkbox [checked] [ref=e101]
+                - generic [ref=e102]: IfcFooting
+    - link "Storeys" [ref=e104] [cursor=pointer]:
+      - /url: "#"
+  - generic:
+    - generic:
+      - button "" [ref=e105]
+      - group:
+        - button "" [ref=e106]
+        - button "" [ref=e107]
+        - button "" [ref=e108]
+        - button "" [ref=e109]
+        - button "" [ref=e110]
+      - group:
+        - button "" [ref=e111]
+        - button "" [ref=e112]
+        - button "" [ref=e113]
+        - button "" [ref=e114]
+        - button "" [ref=e115]
+        - button " 0" [ref=e116]:
+          - text: 
+          - generic [ref=e119]: "0"
+  - generic [ref=e122]:
+    - link "Properties" [ref=e123] [cursor=pointer]:
+      - /url: "#"
+    - paragraph [ref=e127]: No object inspected. Right-click or long-tab an object and select 'Inspect Properties' to view its properties here.
