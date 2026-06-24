@@ -120010,6 +120010,357 @@ class FirstPersonMode extends Controller {
     }
 }
 
+/**
+ * Pure, framework-free helpers for first-person game movement.
+ *
+ * Kept separate from FirstPersonControls.js so the math is unit-testable
+ * without a browser, an xeokit Scene, or the DOM (mirrors sectionAxisUtils.js).
+ *
+ * @private
+ */
+
+/**
+ * Reduce the set of currently-pressed movement keys to per-axis intent.
+ * Each axis is -1, 0, or +1.
+ *
+ * @param {Object} keys Flags: {forward, back, left, right, up, down}
+ * @returns {{forward:number, right:number, up:number}}
+ */
+function movementAxes(keys) {
+    return {
+        forward: (keys.forward ? 1 : 0) - (keys.back ? 1 : 0),
+        right: (keys.right ? 1 : 0) - (keys.left ? 1 : 0),
+        up: (keys.up ? 1 : 0) - (keys.down ? 1 : 0)
+    };
+}
+
+/**
+ * Derive scale-aware movement config from the model's AABB diagonal.
+ *
+ * Speeds scale with model size so the feel holds for big and small models.
+ * Eye height and gravity use fixed defaults that assume model units are
+ * roughly metres (true for the XKT BIM models in this repo); override them
+ * for models in other units.
+ *
+ * @param {Number} diag Model AABB diagonal length, in world units
+ * @param {Object} [overrides] Any of the returned fields, to force a value
+ * @returns {{walkSpeed:Number, flySpeed:Number, sprintMultiplier:Number,
+ *            eyeHeight:Number, gravity:Number, lookSensitivity:Number}}
+ */
+function deriveFirstPersonConfig(diag, overrides = {}) {
+    const d = (diag > 0) ? diag : 1;
+    const o = overrides;
+    return {
+        walkSpeed: o.walkSpeed !== undefined ? o.walkSpeed : d * 0.12,
+        flySpeed: o.flySpeed !== undefined ? o.flySpeed : d * 0.30,
+        sprintMultiplier: o.sprintMultiplier !== undefined ? o.sprintMultiplier : 3,
+        eyeHeight: o.eyeHeight !== undefined ? o.eyeHeight : 1.7,
+        gravity: o.gravity !== undefined ? o.gravity : 9.81,
+        lookSensitivity: o.lookSensitivity !== undefined ? o.lookSensitivity : 0.12 // degrees per pixel
+    };
+}
+
+/**
+ * Unit forward vector in the horizontal (XZ) plane, from eye toward look.
+ * Used by walk mode so looking up/down does not change ground speed.
+ *
+ * @param {Number[]} eye  World-space eye position [x,y,z]
+ * @param {Number[]} look World-space look position [x,y,z]
+ * @returns {Number[]|null} Unit [x,0,z], or null if the direction is vertical
+ */
+function horizontalForward(eye, look) {
+    const dx = look[0] - eye[0];
+    const dz = look[2] - eye[2];
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (len < 1e-6) {
+        return null;
+    }
+    return [dx / len, 0, dz / len];
+}
+
+/**
+ * Integrate one frame of gravity, clamping the eye to floor + eyeHeight.
+ *
+ * @param {Number} y         Current eye Y
+ * @param {Number|null} floorY World Y of the floor under the eye, or null if none
+ * @param {Number} eyeHeight Desired height of the eye above the floor
+ * @param {Number} velocityY Current vertical velocity
+ * @param {Number} dt        Frame duration in seconds
+ * @param {Number} gravity   Downward acceleration (units/s^2)
+ * @returns {{y:Number, velocityY:Number, grounded:Boolean}}
+ */
+function integrateGravity(y, floorY, eyeHeight, velocityY, dt, gravity) {
+    if (floorY === null || floorY === undefined) {
+        // No floor beneath us: hover rather than fall forever.
+        return {y, velocityY: 0, grounded: false};
+    }
+    const targetY = floorY + eyeHeight;
+    const vY = velocityY - gravity * dt;
+    const nextY = y + vY * dt;
+    if (nextY <= targetY) {
+        return {y: targetY, velocityY: 0, grounded: true};
+    }
+    return {y: nextY, velocityY: vY, grounded: false};
+}
+
+/**
+ * Game-style first-person camera controls: pointer-lock mouse-look, WASD
+ * movement, and a 'G' toggle between free-fly and floor-gravity walk.
+ *
+ * Activated/deactivated by BIMViewer's nav-mode mediator alongside
+ * CameraControl#navMode = "firstPerson". While active it drives the camera
+ * directly and disables the built-in CameraControl so the two don't fight.
+ *
+ * @private
+ */
+class FirstPersonControls extends Controller {
+
+    constructor(parent, cfg = {}) {
+
+        super(parent, cfg);
+
+        this._canvas = this.viewer.scene.canvas.canvas;
+        this._overrides = cfg.config || {};
+        this._fpActive = false;       // our own active flag (base #_active is button state)
+        this._gravityOn = false;      // false = fly, true = walk
+        this._pointerLocked = false;
+        this._velocityY = 0;
+        this._tickSubId = undefined;
+        this._savedCameraControlActive = undefined;
+        this._hud = null;
+        this._config = deriveFirstPersonConfig(1, this._overrides);
+        this._resetKeys();
+
+        // Stable bound handlers so add/removeEventListener pair up correctly.
+        this._onClick = () => {
+            if (this._fpActive && !this._pointerLocked && this._canvas.requestPointerLock) {
+                this._canvas.requestPointerLock();
+            }
+        };
+
+        this._onPointerLockChange = () => {
+            this._pointerLocked = (document.pointerLockElement === this._canvas);
+            this._updateHud();
+        };
+
+        this._onMouseMove = (e) => {
+            if (!this._fpActive || !this._pointerLocked) {
+                return;
+            }
+            const s = this._config.lookSensitivity;
+            const camera = this.viewer.camera;
+            if (e.movementX) {
+                camera.yaw(-e.movementX * s);
+            }
+            if (e.movementY) {
+                camera.pitch(-e.movementY * s);
+            }
+        };
+
+        this._onKeyDown = (e) => this._setKey(e, true);
+        this._onKeyUp = (e) => this._setKey(e, false);
+    }
+
+    _resetKeys() {
+        this._keys = {
+            forward: false, back: false, left: false, right: false,
+            up: false, down: false, sprint: false
+        };
+    }
+
+    _setKey(e, down) {
+        if (!this._fpActive) {
+            return;
+        }
+        const t = e.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) {
+            return;
+        }
+        switch (e.code) {
+            case "KeyW": case "ArrowUp": this._keys.forward = down; break;
+            case "KeyS": case "ArrowDown": this._keys.back = down; break;
+            case "KeyA": case "ArrowLeft": this._keys.left = down; break;
+            case "KeyD": case "ArrowRight": this._keys.right = down; break;
+            case "Space": this._keys.up = down; break;
+            case "ControlLeft": case "ControlRight": this._keys.down = down; break;
+            case "ShiftLeft": case "ShiftRight": this._keys.sprint = down; break;
+            case "KeyG":
+                if (down) {
+                    this._gravityOn = !this._gravityOn;
+                    this._velocityY = 0;
+                    this._updateHud();
+                }
+                break;
+            default:
+                return; // don't preventDefault on unrelated keys
+        }
+        e.preventDefault();
+    }
+
+    /**
+     * Enter or leave game-style first-person control.
+     * @param {Boolean} active
+     */
+    setActive(active) {
+        active = !!active;
+        if (active === this._fpActive) {
+            return;
+        }
+        this._fpActive = active;
+        if (active) {
+            this._enter();
+        } else {
+            this._exit();
+        }
+    }
+
+    _enter() {
+        // Take over from the built-in CameraControl.
+        this._savedCameraControlActive = this.viewer.cameraControl.active;
+        this.viewer.cameraControl.active = false;
+
+        // Recompute scale-aware config from the loaded model each time.
+        const diag = math.getAABB3Diag(this.viewer.scene.aabb);
+        this._config = deriveFirstPersonConfig(diag, this._overrides);
+
+        this._gravityOn = false;
+        this._velocityY = 0;
+        this._resetKeys();
+
+        this._canvas.addEventListener("click", this._onClick);
+        document.addEventListener("pointerlockchange", this._onPointerLockChange);
+        document.addEventListener("mousemove", this._onMouseMove);
+        document.addEventListener("keydown", this._onKeyDown);
+        document.addEventListener("keyup", this._onKeyUp);
+
+        this._tickSubId = this.viewer.scene.on("tick", (e) => this._update(e));
+
+        this._showHud();
+    }
+
+    _exit() {
+        this._canvas.removeEventListener("click", this._onClick);
+        document.removeEventListener("pointerlockchange", this._onPointerLockChange);
+        document.removeEventListener("mousemove", this._onMouseMove);
+        document.removeEventListener("keydown", this._onKeyDown);
+        document.removeEventListener("keyup", this._onKeyUp);
+
+        if (this._tickSubId !== undefined) {
+            this.viewer.scene.off(this._tickSubId);
+            this._tickSubId = undefined;
+        }
+        if (this._pointerLocked && document.exitPointerLock) {
+            document.exitPointerLock();
+        }
+        this._pointerLocked = false;
+        this._resetKeys();
+        this._hideHud();
+
+        if (this._savedCameraControlActive !== undefined) {
+            this.viewer.cameraControl.active = this._savedCameraControlActive;
+            this._savedCameraControlActive = undefined;
+        }
+    }
+
+    _update(e) {
+        if (!this._fpActive) {
+            return;
+        }
+        const dt = Math.min(e.deltaTime / 1000, 0.1); // clamp long frame gaps
+        const camera = this.viewer.camera;
+        const cfg = this._config;
+        const ax = movementAxes(this._keys);
+
+        const base = this._gravityOn ? cfg.walkSpeed : cfg.flySpeed;
+        const speed = base * (this._keys.sprint ? cfg.sprintMultiplier : 1) * dt;
+
+        if (!this._gravityOn) {
+            // FLY: move along camera-local axes (forward follows look incl. pitch).
+            if (ax.forward || ax.right) {
+                camera.pan([ax.right * speed, 0, -ax.forward * speed]);
+            }
+            if (ax.up) {
+                const dy = ax.up * speed;
+                const eye = camera.eye, look = camera.look;
+                camera.eye = [eye[0], eye[1] + dy, eye[2]];
+                camera.look = [look[0], look[1] + dy, look[2]];
+            }
+        } else {
+            // WALK: move in the horizontal plane only, then apply gravity.
+            const fwd = horizontalForward(camera.eye, camera.look);
+            if (fwd && (ax.forward || ax.right)) {
+                const right = [fwd[2], 0, -fwd[0]]; // screen-right in the XZ plane
+                const mx = (fwd[0] * ax.forward + right[0] * ax.right) * speed;
+                const mz = (fwd[2] * ax.forward + right[2] * ax.right) * speed;
+                const eye = camera.eye, look = camera.look;
+                camera.eye = [eye[0] + mx, eye[1], eye[2] + mz];
+                camera.look = [look[0] + mx, look[1], look[2] + mz];
+            }
+            this._applyGravity(dt);
+        }
+    }
+
+    _applyGravity(dt) {
+        const camera = this.viewer.camera;
+        const eye = camera.eye;
+        const floorY = this._floorYBelow(eye);
+        const r = integrateGravity(eye[1], floorY, this._config.eyeHeight, this._velocityY, dt, this._config.gravity);
+        this._velocityY = r.velocityY;
+        if (r.y !== eye[1]) {
+            const dy = r.y - eye[1];
+            const look = camera.look;
+            camera.eye = [eye[0], r.y, eye[2]];
+            camera.look = [look[0], look[1] + dy, look[2]];
+        }
+    }
+
+    _floorYBelow(eye) {
+        // Raycast straight down from just above the eye to find the floor.
+        const hit = this.viewer.scene.pick({
+            origin: [eye[0], eye[1] + 0.1, eye[2]],
+            direction: [0, -1, 0],
+            pickSurface: true
+        });
+        return (hit && hit.worldPos) ? hit.worldPos[1] : null;
+    }
+
+    // --- HUD ----------------------------------------------------------------
+
+    _showHud() {
+        if (!this._hud) {
+            const hud = document.createElement("div");
+            hud.style.cssText = [
+                "position:absolute", "left:50%", "bottom:16px", "transform:translateX(-50%)",
+                "z-index:200000", "pointer-events:none", "font-family:sans-serif",
+                "font-size:12px", "line-height:1.5", "color:#fff", "text-align:center",
+                "background:rgba(0,0,0,0.55)", "padding:6px 12px", "border-radius:6px",
+                "white-space:nowrap"
+            ].join(";");
+            (this._canvas.parentNode || document.body).appendChild(hud);
+            this._hud = hud;
+        }
+        this._updateHud();
+    }
+
+    _updateHud() {
+        if (!this._hud) {
+            return;
+        }
+        const mode = this._gravityOn ? "WALK" : "FLY";
+        const verticals = this._gravityOn ? "" : " &middot; Space/Ctrl up/down";
+        const lock = this._pointerLocked ? "Esc to release mouse" : "Click view to look";
+        this._hud.innerHTML =
+            `<b>${mode}</b> &nbsp; WASD move &middot; Shift sprint${verticals} &middot; G gravity<br>${lock}`;
+    }
+
+    _hideHud() {
+        if (this._hud && this._hud.parentNode) {
+            this._hud.parentNode.removeChild(this._hud);
+        }
+        this._hud = null;
+    }
+}
+
 /** @private */
 class HideTool extends Controller {
 
@@ -124292,6 +124643,9 @@ class BIMViewer extends Controller {
 
             this.setFirstPersonModeActive = (active) => {
                 bimViewer.viewer.cameraControl.navMode = active ? "firstPerson" : (threeDActive ? "orbit" : "planView");
+                if (bimViewer._firstPersonControls) {
+                    bimViewer._firstPersonControls.setActive(active);
+                }
             };
 
         })(this);
@@ -124311,6 +124665,10 @@ class BIMViewer extends Controller {
             buttonElement: toolbarElement.querySelector(".xeokit-firstPerson"),
             cameraControlNavModeMediator,
             active: false
+        });
+
+        this._firstPersonControls = new FirstPersonControls(this, {
+            // config: { walkSpeed, flySpeed, eyeHeight, ... }  // optional overrides
         });
 
         this._hideTool = new HideTool(this, {
