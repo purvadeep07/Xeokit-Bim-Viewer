@@ -142,8 +142,8 @@ class ModelsExplorer extends Controller {
         for (let i = 0, len = modelsInfo.length; i < len; i++) {
             const modelInfo = modelsInfo[i];
             const modelId = modelInfo.id;
-            const checkBox = this._containerElement.querySelector("#input-" + modelId);
-            const span = this._containerElement.querySelector("#span-" + modelId);
+            const checkBox = this._containerElement.querySelector("#input-" + CSS.escape(modelId));
+            const span = this._containerElement.querySelector("#span-" + CSS.escape(modelId));
             checkBox.addEventListener("click", () => {
                 if (checkBox.checked) {
                     this.loadModel(modelId);
@@ -299,7 +299,7 @@ class ModelsExplorer extends Controller {
     _loadGeometry(modelId, modelInfo, json, done, error) {
 
         const modelLoaded = () => {
-            const checkbox = this._containerElement.querySelector("#input-" + modelId);
+            const checkbox = this._containerElement.querySelector("#input-" + CSS.escape(modelId));
             checkbox.checked = true;
             this._numModelsLoaded++;
             this._unloadModelsButtonElement.classList.remove("disabled");
@@ -415,9 +415,9 @@ class ModelsExplorer extends Controller {
             return;
         }
         model.destroy();
-        const checkbox = this._containerElement.querySelector("#input-" + modelId);
+        const checkbox = this._containerElement.querySelector("#input-" + CSS.escape(modelId));
         checkbox.checked = false;
-        const span = this._containerElement.querySelector("#span-" + modelId);
+        const span = this._containerElement.querySelector("#span-" + CSS.escape(modelId));
         this._numModelsLoaded--;
         if (this._numModelsLoaded > 0) {
             this._unloadModelsButtonElement.classList.remove("disabled");

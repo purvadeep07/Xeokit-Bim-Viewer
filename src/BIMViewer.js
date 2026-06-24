@@ -1,4 +1,4 @@
-import {BCFViewpointsPlugin, FastNavPlugin, math, stats, Viewer,} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
+import {BCFViewpointsPlugin, FastNavPlugin, math, stats, Viewer, PhongMaterial} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
 
 import {Controller} from "./Controller.js";
 import {BusyModal} from "./BusyModal.js";
@@ -246,7 +246,8 @@ class BIMViewer extends Controller {
             // It is important to consider that each SectionPlane imposes rendering performance, so it is
             // recommended to set this value to a quantity that aligns with your expected usage.
 
-            numCachedSectionPlanes: 4
+            numCachedSectionPlanes: 4,
+            readableGeometryEnabled: true
         });
 
         super(null, cfg, server, viewer);
@@ -450,6 +451,33 @@ class BIMViewer extends Controller {
         this._modelsExplorer.on("modelLoaded", (modelId) => {
             if (this._modelsExplorer.getNumModelsLoaded() > 0) {
                 this.setControlsEnabled(true);
+            }
+            const sceneModel = viewer.scene.models[modelId];
+            if (sceneModel) {
+                const noCapTypes = new Set(["IfcRoof", "IfcSpace", "IfcOpeningElement",
+                    "IfcDoor", "IfcWindow", "IfcFurnishingElement", "IfcAnnotation",
+                    "IfcSite", "IfcBuilding", "IfcBuildingStorey", "IfcProject"]);
+                const capMaterial = new PhongMaterial(viewer.scene, { backfaces: true });
+                const objects = sceneModel.objects;
+                for (const objectId in objects) {
+                    const object = objects[objectId];
+                    if (object.opacity < 0.7) continue;
+                    const metaObject = viewer.metaScene.metaObjects[objectId];
+                    if (!metaObject || !noCapTypes.has(metaObject.type)) {
+                        object.capMaterial = capMaterial;
+                        // XKT may store watertight wall geometry as "surface" (layer.solid=false),
+                        // which causes isSolid() to return false and SectionCaps to skip the object.
+                        // Forcing layer.solid=true here only affects the SectionCaps check —
+                        // the per-object GPU backface flag is baked at geometry creation time and unchanged.
+                        if (object.meshes) {
+                            for (const mesh of object.meshes) {
+                                if (mesh.layer && !mesh.layer.solid) {
+                                    mesh.layer.solid = true;
+                                }
+                            }
+                        }
+                    }
+                }
             }
             this.fire("modelLoaded", modelId);
         });
