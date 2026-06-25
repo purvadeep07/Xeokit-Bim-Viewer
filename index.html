@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>BIM Viewer</title>
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f4f6f8; color: #1c2a3a; }
+        header { background: #03103a; color: #fff; padding: 22px 28px; }
+        header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        header p { margin: 6px 0 0; opacity: 0.75; font-size: 13px; }
+        main { max-width: 880px; margin: 28px auto; padding: 0 20px; }
+        ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        a.card { display: block; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 18px; text-decoration: none; color: #1c2a3a; transition: box-shadow .15s, border-color .15s; }
+        a.card:hover { border-color: #477dca; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+        a.card .id { display: block; margin-top: 4px; font-size: 12px; color: #64748b; }
+        .loading, .error { color: #64748b; font-size: 14px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>BIM Viewer</h1>
+    <p>Open a model below, then use the Section Box tool to crop a portion and copy a shareable link.</p>
+</header>
+<main>
+    <ul id="projects"><li class="loading">Loading projects…</li></ul>
+</main>
+<script>
+    // Builds a project list from the demo data; falls back to a default link if it can't load.
+    fetch("./app/data/projects/index.json")
+        .then((r) => r.json())
+        .then((data) => {
+            const ul = document.getElementById("projects");
+            ul.innerHTML = "";
+            (data.projects || []).forEach((p) => {
+                const li = document.createElement("li");
+                const a = document.createElement("a");
+                a.className = "card";
+                a.href = "./app/index.html?projectId=" + encodeURIComponent(p.id);
+                a.innerHTML = '<strong>' + (p.name || p.id) + '</strong><span class="id">' + p.id + '</span>';
+                li.appendChild(a);
+                ul.appendChild(li);
+            });
+            if (!ul.children.length) {
+                ul.innerHTML = '<li><a class="card" href="./app/index.html?projectId=Bungalow43">Open Bungalow</a></li>';
+            }
+        })
+        .catch(() => {
+            document.getElementById("projects").innerHTML =
+                '<li><a class="card" href="./app/index.html?projectId=Bungalow43">Open Bungalow</a></li>';
+        });
+</script>
+</body>
+</html>

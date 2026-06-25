@@ -1,0 +1,29 @@
+{
+  "id": "MyBungalow",
+  "name": "My Custom Bungalow Project",
+  "models": [
+    {
+      "id": "design",
+      "name": "Main Design Model"
+    }
+  ],
+  "viewerConfigs": {
+    "backgroundColor": [0.95, 0.95, 0.95],
+    "caps": true,
+    "objectColors": {
+      "IfcWall": { "caps": true },
+      "IfcWallStandardCase": { "caps": true },
+      "IfcWallElementedCase": { "caps": true },
+      "IfcSlab": { "caps": true },
+      "IfcRoof": { "caps": true },
+      "IfcColumn": { "caps": true },
+      "IfcBeam": { "caps": true }
+    }
+  },
+  "viewerContent": {
+    "modelsLoaded": ["design"]
+  },
+  "viewerState": {
+    "tabOpen": "objects"
+  }
+}
