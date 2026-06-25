@@ -61,8 +61,7 @@
         const enableEditModels = (requestParams.enableEditModels === "true");
 
         const server = new Server({
-            dataDir: requestParams.dataDir || "./data",
-            cacheBust: !!shareLink // shared links always fetch the latest model files
+            dataDir: requestParams.dataDir || "./data"
         });
 
         const bimViewer = new BIMViewer(server, {
@@ -164,24 +163,38 @@
                 console.error(errorMsg);
             });
 
-        // Loads the models named in a shared link (skipping any already loaded), then
-        // restores the camera and the section box. Geometry comes from the server, so
-        // the cropped view always shows the latest model.
+        // Applies a shared link once its models are present. The project may already be
+        // auto-loading those models, so we WAIT for them (polling the scene) rather than
+        // calling loadModel and racing the auto-load. Any model the project does not load
+        // on its own is requested after a short grace period. Geometry always comes from
+        // the server, so the cropped view reflects the latest model.
         function applyShareLink(payload) {
-            const modelIds = (payload && payload.m) || [];
-            const loadNext = (i) => {
-                if (i >= modelIds.length) {
+            const need = (payload && payload.m) || [];
+            const scene = bimViewer.viewer.scene;
+            const allLoaded = () => need.every((id) => !!scene.models[id]);
+            let ticks = 0;
+            const poll = () => {
+                if (allLoaded()) {
                     finishShareLink(payload);
                     return;
                 }
-                const id = modelIds[i];
-                if (bimViewer.viewer.scene.models[id]) {
-                    loadNext(i + 1);
-                } else {
-                    bimViewer.loadModel(id, () => loadNext(i + 1), () => loadNext(i + 1));
+                // After ~2s, actively load any model the project did not auto-load.
+                if (ticks === 4) {
+                    need.forEach((id) => {
+                        if (!scene.models[id]) {
+                            try { bimViewer.loadModel(id); } catch (e) { /* already loading */ }
+                        }
+                    });
                 }
+                // Give up waiting after ~30s and apply what we can (camera + box).
+                if (ticks > 60) {
+                    finishShareLink(payload);
+                    return;
+                }
+                ticks++;
+                window.setTimeout(poll, 500);
             };
-            loadNext(0);
+            poll();
         }
 
         function finishShareLink(payload) {
@@ -287,7 +300,10 @@
 
         function getRequestParams() {
             const vars = {};
-            window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, (m, key, value) => {
+            // Parse only the query string, not location.href: the share-link hash
+            // (#sectionBox=...) has no '&' before it, so parsing the full URL would
+            // swallow the fragment into the last query param (e.g. projectId).
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, (m, key, value) => {
                 vars[key] = value;
             });
             return vars;
