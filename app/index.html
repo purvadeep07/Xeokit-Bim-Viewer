@@ -208,7 +208,9 @@
                 camera.up = payload.cam.up;
             }
             if (payload.box) {
-                bimViewer.setSectionBox(payload.box);
+                // lock=1 in the link => view-only crop (handles hidden, no resizing).
+                const locked = (requestParams.lock === "1" || requestParams.lock === "true");
+                bimViewer.setSectionBox(payload.box, locked);
             }
         }
 

@@ -75,8 +75,10 @@ const messages = {
         },
         "sectionBox": { // The Section Box tool pull-down menu
             "copyLink": "Copy share link", // Menu option to copy a shareable link to this cropped view
+            "copyViewOnlyLink": "Copy view-only link", // Menu option to copy a locked link (recipient can't resize the box)
             "resetBox": "Reset box to model bounds", // Menu option to grow the box back to the whole model
-            "linkCopied": "Share link copied" // Toast shown after the link is copied to the clipboard
+            "linkCopied": "Share link copied", // Toast shown after the link is copied to the clipboard
+            "viewOnlyLinkCopied": "View-only link copied" // Toast shown after the view-only link is copied
         },
         "canvasContextMenu": { // Context menu that appears when we right-click on empty canvas space
             "viewFitSelection": "View Fit Selected", // **** added

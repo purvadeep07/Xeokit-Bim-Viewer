@@ -121494,6 +121494,8 @@ class SectionBox {
         this._node = null;           // root Node
         this._minThickness = 0.01;
         this._drag = null;           // {face} while dragging
+        this._visible = false;       // wireframe shown
+        this._locked = false;        // view-only: handles hidden, dragging disabled
 
         this._org = math.vec3();
         this._dir = math.vec3();
@@ -121559,12 +121561,29 @@ class SectionBox {
     }
 
     setVisible(visible) {
+        this._visible = visible;
+        this._applyVisibility();
+    }
+
+    /**
+     * View-only mode: keeps the crop and the wireframe, but hides the face handles
+     * and disables dragging so the box cannot be resized.
+     * @param {Boolean} locked
+     */
+    setLocked(locked) {
+        this._locked = !!locked;
+        this._applyVisibility();
+    }
+
+    _applyVisibility() {
         if (!this._built) {
             return;
         }
-        this._wire.visible = visible;
+        this._wire.visible = this._visible;
+        const handlesVisible = this._visible && !this._locked;
         for (const face of BOX_FACES) {
-            this._handles[face].visible = visible;
+            this._handles[face].visible = handlesVisible;
+            this._handles[face].pickable = handlesVisible;
         }
     }
 
@@ -121667,7 +121686,7 @@ class SectionBox {
     }
 
     _handleDown(e) {
-        if (!this._built || e.which !== 1) {
+        if (!this._built || this._locked || e.which !== 1) {
             return;
         }
         const canvasPos = this._eventToCanvasPos(e);
@@ -121783,17 +121802,20 @@ function decodeShareState(str) {
 }
 
 /**
- * Build a shareable viewer URL: `<base>?projectId=<id>#sectionBox=<encoded>`.
+ * Build a shareable viewer URL: `<base>?projectId=<id>[&lock=1]#sectionBox=<encoded>`.
  * Any pre-existing query/hash on `baseUrl` is dropped.
  *
  * @param {String} baseUrl e.g. window.location.href or ".../app/index.html"
  * @param {String} projectId
  * @param {String} encoded Output of encodeShareState
+ * @param {Object} [opts]
+ * @param {Boolean} [opts.lock] When true, adds `&lock=1` so the opened viewer is view-only.
  * @returns {String}
  */
-function buildShareUrl(baseUrl, projectId, encoded) {
+function buildShareUrl(baseUrl, projectId, encoded, opts) {
     const base = baseUrl.split("#")[0].split("?")[0];
-    return base + "?projectId=" + encodeURIComponent(projectId) + "#sectionBox=" + encoded;
+    const lock = (opts && opts.lock) ? "&lock=1" : "";
+    return base + "?projectId=" + encodeURIComponent(projectId) + lock + "#sectionBox=" + encoded;
 }
 
 /**
@@ -121848,6 +121870,7 @@ class SectionBoxTool extends Controller {
 
         this._sectionBox = new SectionBox(this.viewer);
         this._lastBox = null; // remembered crop, so toggling off/on keeps it
+        this._locked = false; // view-only: no dragging, button/menu disabled
 
         this._menu = new ContextMenu({
             hideOnAction: true,
@@ -121856,7 +121879,11 @@ class SectionBoxTool extends Controller {
                 [
                     {
                         getTitle: (context) => this.bimViewer.viewer.localeService.translate("sectionBox.copyLink") || "Copy share link",
-                        doAction: () => this._copyShareLink()
+                        doAction: () => this._copyShareLink(false)
+                    },
+                    {
+                        getTitle: (context) => this.bimViewer.viewer.localeService.translate("sectionBox.copyViewOnlyLink") || "Copy view-only link",
+                        doAction: () => this._copyShareLink(true)
                     },
                     {
                         getTitle: (context) => this.bimViewer.viewer.localeService.translate("sectionBox.resetBox") || "Reset box to model bounds",
@@ -121889,6 +121916,7 @@ class SectionBoxTool extends Controller {
                     return;
                 }
                 this._sectionBox.activate(box);
+                this._sectionBox.setLocked(this._locked);
             } else {
                 this._lastBox = this._sectionBox.getBox() || this._lastBox;
                 this._sectionBox.deactivate();
@@ -121896,7 +121924,8 @@ class SectionBoxTool extends Controller {
         });
 
         this._buttonElement.addEventListener("click", (e) => {
-            if (!this.getEnabled()) {
+            if (!this.getEnabled() || this._locked) {
+                // View-only crop: ignore toggle/menu so the box cannot be changed.
                 return;
             }
             if (e.target === this._menuButtonElement || e.target.parentNode === this._menuButtonElement) {
@@ -121931,11 +121960,14 @@ class SectionBoxTool extends Controller {
     /**
      * Crop to the given box, activating the tool. Used when applying a shared link.
      * @param {{min:Number[], max:Number[]}} box
+     * @param {Boolean} [locked=false] View-only: hide handles and disable resizing.
      */
-    setBox(box) {
+    setBox(box, locked = false) {
         this._lastBox = box;
+        this._locked = !!locked;
         if (this.getActive()) {
             this._sectionBox.setBox(box);
+            this._sectionBox.setLocked(this._locked);
         } else {
             this.setActive(true);
         }
@@ -121948,6 +121980,7 @@ class SectionBoxTool extends Controller {
 
     clear() {
         this._lastBox = null;
+        this._locked = false;
         this._sectionBox.deactivate();
     }
 
@@ -121958,7 +121991,7 @@ class SectionBoxTool extends Controller {
         }
     }
 
-    _copyShareLink() {
+    _copyShareLink(locked) {
         const box = this.getBox();
         if (!box) {
             return;
@@ -121975,8 +122008,9 @@ class SectionBoxTool extends Controller {
             }
         };
         const projectId = this.bimViewer.getLoadedProjectId();
-        const url = buildShareUrl(window.location.href, projectId, encodeShareState(state));
-        const done = () => this._flash(this.viewer.localeService.translate("sectionBox.linkCopied") || "Share link copied");
+        const url = buildShareUrl(window.location.href, projectId, encodeShareState(state), {lock: !!locked});
+        const msgKey = locked ? "sectionBox.viewOnlyLinkCopied" : "sectionBox.linkCopied";
+        const done = () => this._flash(this.viewer.localeService.translate(msgKey) || (locked ? "View-only link copied" : "Share link copied"));
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(url).then(done, () => this._flash(url));
         } else {
@@ -127216,9 +127250,11 @@ class BIMViewer extends Controller {
      * Used to apply a shared section-box link. The box is in world coordinates.
      *
      * @param {{min:Number[], max:Number[]}} box Box corners, e.g. {min:[x,y,z], max:[x,y,z]}.
+     * @param {Boolean} [locked=false] View-only: shows the crop but hides the drag handles
+     * and disables resizing (used by view-only share links).
      */
-    setSectionBox(box) {
-        this._sectionBoxTool.setBox(box);
+    setSectionBox(box, locked = false) {
+        this._sectionBoxTool.setBox(box, locked);
     }
 
     /**
