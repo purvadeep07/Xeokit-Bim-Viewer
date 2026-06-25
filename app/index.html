@@ -35,7 +35,7 @@
 
 <script type="module">
 
-    import { Server, BIMViewer, LocaleService } from "../dist/xeokit-bim-viewer.es.js";
+    import { Server, BIMViewer, LocaleService, parseShareUrl } from "../dist/xeokit-bim-viewer.es.js";
 
     import { messages as localeMessages } from "../dist/messages.js";
 
@@ -43,7 +43,13 @@
 
         const requestParams = getRequestParams();
         const locale = requestParams.locale || "en";
-        const projectId = requestParams.projectId;
+
+        // A shared Section Box link carries the box + camera in the URL hash, and the
+        // project id in the query. When present we load the model fresh (cache-busted)
+        // so the shared view reflects the latest model, then re-apply the box.
+        const shareLink = parseShareUrl(window.location.href);
+
+        const projectId = requestParams.projectId || (shareLink && shareLink.projectId);
 
         if (!projectId) {
             return;
@@ -148,11 +154,65 @@
             if (tab) {
                 bimViewer.openTab(tab);
             }
+            if (shareLink) {
+                applyShareLink(shareLink.payload);
+            }
             watchHashParams();
         },
             (errorMsg) => {
                 console.error(errorMsg);
             });
+
+        // Applies a shared link once its models are present. The project may already be
+        // auto-loading those models, so we WAIT for them (polling the scene) rather than
+        // calling loadModel and racing the auto-load. Any model the project does not load
+        // on its own is requested after a short grace period. Geometry always comes from
+        // the server, so the cropped view reflects the latest model.
+        function applyShareLink(payload) {
+            const need = (payload && payload.m) || [];
+            const scene = bimViewer.viewer.scene;
+            const allLoaded = () => need.every((id) => !!scene.models[id]);
+            let ticks = 0;
+            const poll = () => {
+                if (allLoaded()) {
+                    finishShareLink(payload);
+                    return;
+                }
+                // After ~2s, actively load any model the project did not auto-load.
+                if (ticks === 4) {
+                    need.forEach((id) => {
+                        if (!scene.models[id]) {
+                            try { bimViewer.loadModel(id); } catch (e) { /* already loading */ }
+                        }
+                    });
+                }
+                // Give up waiting after ~30s and apply what we can (camera + box).
+                if (ticks > 60) {
+                    finishShareLink(payload);
+                    return;
+                }
+                ticks++;
+                window.setTimeout(poll, 500);
+            };
+            poll();
+        }
+
+        function finishShareLink(payload) {
+            if (payload.cam) {
+                const camera = bimViewer.viewer.camera;
+                if (payload.cam.projection) {
+                    camera.projection = payload.cam.projection;
+                }
+                camera.eye = payload.cam.eye;
+                camera.look = payload.cam.look;
+                camera.up = payload.cam.up;
+            }
+            if (payload.box) {
+                // lock=1 in the link => view-only crop (handles hidden, no resizing).
+                const locked = (requestParams.lock === "1" || requestParams.lock === "true");
+                bimViewer.setSectionBox(payload.box, locked);
+            }
+        }
 
         function watchHashParams() {
             let lastHash = "";
@@ -242,7 +302,10 @@
 
         function getRequestParams() {
             const vars = {};
-            window.location.href.replace(/[?&]+([^=&]+)=([^&]*)/gi, (m, key, value) => {
+            // Parse only the query string, not location.href: the share-link hash
+            // (#sectionBox=...) has no '&' before it, so parsing the full URL would
+            // swallow the fragment into the last query param (e.g. projectId).
+            window.location.search.replace(/[?&]+([^=&]+)=([^&]*)/gi, (m, key, value) => {
                 vars[key] = value;
             });
             return vars;

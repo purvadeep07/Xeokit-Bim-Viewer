@@ -1,4 +1,5 @@
 import {ContextMenu, math, utils} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
+import {isSectionBoxPlaneId} from "./../toolbar/sectionBoxUtils.js";
 
 const tempAABB = math.AABB3();
 const tempVec3 = math.vec3();
@@ -33,7 +34,10 @@ class SectionToolContextMenu extends ContextMenu {
     _buildMenu() {
 
         const sectionPlanesPlugin = this._sectionPlanesPlugin;
-        const sectionPlanes = Object.values(sectionPlanesPlugin.sectionPlanes);
+        // Exclude the Section Box's planes: they are a separate tool and must not be
+        // editable/deletable from the Slice menu (otherwise a locked box could be removed).
+        const sectionPlanes = Object.values(sectionPlanesPlugin.sectionPlanes)
+            .filter((sectionPlane) => !isSectionBoxPlaneId(sectionPlane.id));
 
         const sectionPlanesMenuItems = [];
 

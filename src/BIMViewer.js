@@ -11,6 +11,7 @@ import {SelectionTool} from "./toolbar/SelectionTool.js";
 import {ShowSpacesMode} from "./toolbar/ShowSpacesMode.js";
 import {QueryTool} from "./toolbar/QueryTool.js";
 import {SectionTool} from "./toolbar/SectionTool.js";
+import {SectionBoxTool} from "./toolbar/SectionBoxTool.js";
 import {NavCubeMode} from "./toolbar/NavCubeMode.js";
 
 import {ModelsExplorer} from "./explorer/ModelsExplorer.js";
@@ -115,6 +116,12 @@ function createToolbarTemplate(cfg = {}) {
                 <span class="xeokit-arrow-down xeokit-section-menu-button-arrow"></span>
             </div>
             <div class="xeokit-i18n xeokit-section-counter" data-xeokit-i18ntip="toolbar.numSlicesTip" data-tippy-content="Number of existing slices"></div>
+        </button>
+        <!-- section box tool button -->
+        <button type="button" class="xeokit-i18n xeokit-sectionBox xeokit-btn fa fa-box fa-2x disabled" data-xeokit-i18ntip="toolbar.sectionBoxTip" data-tippy-content="Section box">
+            <div class="xeokit-i18n xeokit-sectionBox-menu-button disabled" data-xeokit-i18ntip="toolbar.sectionBoxMenuTip" data-tippy-content="Section box menu">
+                <span class="xeokit-arrow-down xeokit-sectionBox-menu-button-arrow"></span>
+            </div>
         </button>
     </div>
 </div>`;
@@ -247,7 +254,7 @@ class BIMViewer extends Controller {
             // It is important to consider that each SectionPlane imposes rendering performance, so it is
             // recommended to set this value to a quantity that aligns with your expected usage.
 
-            numCachedSectionPlanes: 4,
+            numCachedSectionPlanes: 12, // a Section Box uses 6; the Slice tool may add more
             readableGeometryEnabled: true
         });
 
@@ -430,6 +437,14 @@ class BIMViewer extends Controller {
             containerElement: this._containerElement
         });
 
+        this._sectionBoxTool = new SectionBoxTool(this, {
+            buttonElement: toolbarElement.querySelector(".xeokit-sectionBox"),
+            menuButtonElement: toolbarElement.querySelector(".xeokit-sectionBox-menu-button"),
+            menuButtonArrowElement: toolbarElement.querySelector(".xeokit-sectionBox-menu-button-arrow"),
+            active: false,
+            containerElement: this._containerElement
+        });
+
         if (this._enableMeasurements) {
 
             this._measureDistanceTool = new MeasureDistanceTool(this, {
@@ -507,6 +522,7 @@ class BIMViewer extends Controller {
             this._selectionTool,
             this._marqueeSelectionTool,
             this._sectionTool,
+            this._sectionBoxTool,
             this._enableMeasurements ? this._measureDistanceTool : null,
             this._enableMeasurements ? this._measureAngleTool : null
         ]);
@@ -2005,6 +2021,7 @@ class BIMViewer extends Controller {
             this._measureAngleTool.setEnabled(enabled);
         }
         this._sectionTool.setEnabled(enabled);
+        this._sectionBoxTool.setEnabled(enabled);
 
         if (this._enablePropertiesInspector) {
             this._propertiesInspector.setEnabled(enabled);
@@ -2083,6 +2100,28 @@ class BIMViewer extends Controller {
      */
     getNumSections() {
         return this._sectionTool.getNumSections();
+    }
+
+    /**
+     * Crops the model to the given axis-aligned section box, activating the Section Box tool.
+     *
+     * Used to apply a shared section-box link. The box is in world coordinates.
+     *
+     * @param {{min:Number[], max:Number[]}} box Box corners, e.g. {min:[x,y,z], max:[x,y,z]}.
+     * @param {Boolean} [locked=false] View-only: shows the crop but hides the drag handles
+     * and disables resizing (used by view-only share links).
+     */
+    setSectionBox(box, locked = false) {
+        this._sectionBoxTool.setBox(box, locked);
+    }
+
+    /**
+     * Returns the current section box as {min,max}, or null if none is set.
+     *
+     * @returns {{min:Number[], max:Number[]}|null}
+     */
+    getSectionBox() {
+        return this._sectionBoxTool.getBox();
     }
 
     /**

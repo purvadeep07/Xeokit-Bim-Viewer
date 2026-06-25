@@ -2,6 +2,7 @@ import {Controller} from "../Controller.js";
 import {SectionToolContextMenu} from "./../contextMenus/SectionToolContextMenu.js";
 import {math, SectionPlanesPlugin} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
 import {axisToDir, nearestAxisSnap} from "./sectionAxisUtils.js";
+import {isSectionBoxPlaneId} from "./sectionBoxUtils.js";
 
 // Max angle (degrees) between the cut normal and a principal axis for snap-on-release.
 const SNAP_THRESHOLD_DEG = 12;
@@ -210,22 +211,44 @@ class SectionTool extends Controller { // XX
         return this._snapToAxisEnabled;
     }
 
+    /**
+     * The slice planes this tool owns — i.e. every scene section plane EXCEPT the
+     * Section Box's. The SDK's SectionPlanesPlugin registers all scene section
+     * planes (including the box's), so we filter by id to keep the two tools from
+     * clobbering each other (e.g. "Clear Slices" must never remove the box).
+     * @private
+     */
+    _sliceSectionPlanes() {
+        const sectionPlanes = this.viewer.scene.sectionPlanes;
+        const result = [];
+        for (const id in sectionPlanes) {
+            if (!isSectionBoxPlaneId(id)) {
+                result.push(sectionPlanes[id]);
+            }
+        }
+        return result;
+    }
+
     getNumSections() {
-        return Object.keys(this.viewer.scene.sectionPlanes).length;
+        return this._sliceSectionPlanes().length;
     }
 
     clear() {
-        this._sectionPlanesPlugin.clear();
+        for (const sectionPlane of this._sliceSectionPlanes()) {
+            sectionPlane.destroy();
+        }
         this._updateSectionPlanesCount();
     }
 
     flipSections() {
-        this._sectionPlanesPlugin.flipSectionPlanes();
+        for (const sectionPlane of this._sliceSectionPlanes()) {
+            sectionPlane.flipDir();
+        }
     }
 
     /**
      * Creates a single axis-aligned section plane at the model center, replacing
-     * any existing section planes, and shows its editing gizmo.
+     * any existing slice planes (but not the Section Box), and shows its editing gizmo.
      *
      * @param {String} axis One of "+x","-x","+y","-y","+z","-z".
      */
@@ -236,7 +259,9 @@ class SectionTool extends Controller { // XX
         if (!aabb || aabb[0] > aabb[3] || aabb[1] > aabb[4] || aabb[2] > aabb[5]) {
             return;
         }
-        this._sectionPlanesPlugin.clear();
+        for (const sectionPlane of this._sliceSectionPlanes()) {
+            sectionPlane.destroy();
+        }
         const center = math.getAABB3Center(aabb, math.vec3());
         const sectionPlane = this._sectionPlanesPlugin.createSectionPlane({
             pos: center,
@@ -247,17 +272,13 @@ class SectionTool extends Controller { // XX
     }
 
     enableSections() {
-        const sectionPlanes = this.viewer.scene.sectionPlanes;
-        for (let id in sectionPlanes) {
-            const sectionPlane = sectionPlanes[id];
+        for (const sectionPlane of this._sliceSectionPlanes()) {
             sectionPlane.active = true;
         }
     }
 
     disableSections() {
-        const sectionPlanes = this.viewer.scene.sectionPlanes;
-        for (let id in sectionPlanes) {
-            const sectionPlane = sectionPlanes[id];
+        for (const sectionPlane of this._sliceSectionPlanes()) {
             sectionPlane.active = false;
         }
     }

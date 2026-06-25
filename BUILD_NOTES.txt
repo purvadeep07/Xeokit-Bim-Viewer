@@ -1,0 +1,215 @@
+============================================================
+ SECTION BOX + SHAREABLE LINKS - DEV NOTES
+ xeokit-bim-viewer
+ Live: https://purvadeep07.github.io/Xeokit-Bim-Viewer/
+============================================================
+
+Core concept: xeokit only has infinite SectionPlanes. A section box is
+6 axis-aligned SectionPlanes with INWARD normals. A point is kept iff it
+is on the inner side of all 6 planes => box interior.
+
+
+------------------------------------------------------------
+FILE MAP
+------------------------------------------------------------
+  src/toolbar/sectionBoxUtils.js   pure math + id helpers   (unit-tested)
+  src/toolbar/shareLinkUtils.js    encode/decode/build/parse (unit-tested)
+  src/toolbar/SectionBox.js        scene objects + drag interaction
+  src/toolbar/SectionBoxTool.js    Controller (button, menu, lock, share)
+  src/toolbar/SectionTool.js       Slice tool - isolation filter added here
+  src/contextMenus/SectionToolContextMenu.js   per-slice menu - filtered
+  src/BIMViewer.js                 button HTML, instantiate, mutex, setSectionBox()
+  app/index.html                   URL parsing + applyShareLink on startup
+  locales/messages.js              i18n strings (sectionBox.*)
+  test/sectionBoxUtils.test.js, test/shareLinkUtils.test.js   (53 tests total)
+
+
+------------------------------------------------------------
+GEOMETRY / MATH  (sectionBoxUtils.js)
+------------------------------------------------------------
+Box type:  { min:[x,y,z], max:[x,y,z] }
+Faces:     "+x","-x","+y","-y","+z","-z"
+
+FACE_INFO  face -> { axis index, bound, inward unit normal }
+  +x : axis 0, bound max, dir [-1, 0, 0]
+  -x : axis 0, bound min, dir [ 1, 0, 0]
+  +y : axis 1, bound max, dir [ 0,-1, 0]
+  -y : axis 1, bound min, dir [ 0, 1, 0]
+  +z : axis 2, bound max, dir [ 0, 0,-1]
+  -z : axis 2, bound min, dir [ 0, 0, 1]
+
+faceCenter(box, face):
+  c = box center = (min + max)/2
+  c[axis] = box[bound][axis]      // push that one coord out to the face
+  return c
+
+boxToPlanes(box) -> [{face, pos:faceCenter, dir:inward normal} x6]
+  Each plane is created in xeokit as new SectionPlane(scene,{pos,dir,active}).
+  Empirical convention used here: inward normal keeps the interior.
+
+aabbToBox(aabb):   xeokit AABB [minx,miny,minz,maxx,maxy,maxz] -> {min,max}
+  Returns null if missing or inverted (min>max) => "no geometry loaded".
+
+moveFace(box, face, worldT, minThickness):  returns a NEW box (no mutation)
+  i = FACE_INFO[face].axis
+  if bound == "max":  next.max[i] = max(worldT, box.min[i] + minThickness)
+  else             :  next.min[i] = min(worldT, box.max[i] - minThickness)
+  minThickness default in SectionBox = max(diag * 0.005, 1e-4)
+
+closestPointOnAxisParam(O, D, P, A):
+  // closest point between ray (O + s*D) and axis line (P + t*A); returns t
+  r = O - P
+  a = D.D ; b = D.A ; c = A.A ; d = D.r ; e = A.r
+  denom = a*c - b*b
+  if |denom| < 1e-9:  return (c < 1e-9 ? 0 : e/c)   // parallel -> project O onto axis
+  return (a*e - b*d) / denom                         // closest point = P + t*A
+
+isSectionBoxPlaneId(id):  id starts with "xeokit-sectionBox"  (tool isolation)
+
+
+------------------------------------------------------------
+DRAG INTERACTION  (SectionBox.js)
+------------------------------------------------------------
+Scene object ids (prefix = SECTION_BOX_ID_PREFIX = "xeokit-sectionBox"):
+  node      xeokit-sectionBox-node
+  planes    xeokit-sectionBox-plane-<face>
+  wireframe xeokit-sectionBox-wire     (pickable:false, clippable:false)
+  handles   xeokit-sectionBox-handle-<face>  (pickable:true, clippable:false, isObject:false)
+
+Rendering without rebuilding geometry every frame:
+  wireframe = unit box buildBoxLinesGeometry({xSize:1,ySize:1,zSize:1})  // spans -1..1
+    Mesh.position = box center
+    Mesh.scale    = box half-extents  ((max-min)/2)
+  handles   = unit cube buildBoxGeometry(...)
+    Mesh.position = faceCenter
+    Mesh.scale    = handleHalf = max(diag * 0.02, 1e-4)
+
+Pointer -> world ray:
+  canvasPos: copy event.pageX/Y, then transformToNode(documentElement, canvas, vec2)
+  math.canvasPosToWorldRay(canvas, cam.viewMatrix, cam.projMatrix, cam.projection,
+                           canvasPos, org, dir)
+
+Drag sequence:
+  mousedown(canvas): scene.pick({canvasPos}); if entity.id is a handle ->
+        record face; viewer.cameraControl.pointerEnabled = false   // freeze camera
+  mousemove(document): build ray; axisPoint = plane.pos; axisVec = +unit axis of face
+        t = closestPointOnAxisParam(org, dir, axisPoint, axisVec)
+        worldT = axisPoint[axis] + t          // axisVec is +unit, so component = +1
+        setBox(moveFace(box, face, worldT, minThickness))
+  mouseup(document): pointerEnabled = true; clear drag
+  Guard: _handleDown returns early if _locked or e.which !== 1.
+
+
+------------------------------------------------------------
+TOOL ISOLATION  (the "Clear Slices" bypass fix)
+------------------------------------------------------------
+WHY: SDK SectionPlanesPlugin does  this._sectionPlanes = viewer.scene.sectionPlanes
+     (the global pool) AND listens to scene "sectionPlaneCreated", so it registers
+     the box planes too. plugin.clear() => Object.keys(scene.sectionPlanes) =>
+     destroys EVERYTHING, including the box. Same reach for flip/enable/disable and
+     the per-slice submenu.
+
+FIX: SectionTool._sliceSectionPlanes() returns scene.sectionPlanes values whose id
+     fails isSectionBoxPlaneId(). Used by: getNumSections, clear, flipSections,
+     enableSections, disableSections, createAxisSectionPlane.
+     SectionToolContextMenu filters its plane list the same way.
+     SectionBoxTool ignores the bimViewer "reset" event while locked.
+
+
+------------------------------------------------------------
+SHARE LINK  (shareLinkUtils.js + app/index.html)
+------------------------------------------------------------
+Payload (geometry NEVER included -> stays "live"):
+  state = {
+    m:   [modelId, ...],
+    box: { min:[x,y,z], max:[x,y,z] },
+    cam: { eye:[3], look:[3], up:[3], projection:"perspective"|"ortho" }
+  }
+
+encodeShareState(state):
+  toUrlSafe( btoa( encodeURIComponent( JSON.stringify(state) ) ) )
+  toUrlSafe: + -> - , / -> _ , strip trailing =
+decodeShareState(str): reverse; JSON.parse(decodeURIComponent(atob(fromUrlSafe)))
+  returns null on any malformed input (try/catch)
+
+buildShareUrl(base, projectId, encoded, {lock}):
+  strip base of any ?/# , then:
+  <base>?projectId=<enc(projectId)>[&lock=1]#sectionBox=<encoded>
+
+parseShareUrl(href):
+  box regex: /[#&]sectionBox=([^&]*)/
+  pid regex: /[?&]projectId=([^&#]*)/
+  -> { projectId, payload }  or null
+
+App startup (app/index.html):
+  getRequestParams() parses window.location.SEARCH ONLY (not href) -
+    BUG WAS: parsing href swallowed the #sectionBox=... hash into projectId.
+  loadProject(done): applyShareLink(payload)
+    applyShareLink: POLL scene.models every 500ms until all payload.m exist
+      (after ~2s actively loadModel any still missing; give up ~30s) then:
+    finishShareLink: set camera (eye/look/up/projection),
+      locked = (requestParams.lock === "1" || "true"),
+      bimViewer.setSectionBox(payload.box, locked)
+  WHY POLL: loadProject's auto-load is async; applying too early raced it and
+  the box/camera never stuck on the slower live site.
+
+
+------------------------------------------------------------
+VIEW-ONLY LOCK  (&lock=1)
+------------------------------------------------------------
+SectionBox:  _visible, _locked; _applyVisibility():
+  wire.visible = _visible
+  handles.visible = handles.pickable = (_visible && !_locked)
+  _handleDown early-returns when _locked
+SectionBoxTool:
+  setBox(box, locked) stores _locked; button click ignored when _locked;
+  "reset" ignored when _locked; menu item "Copy view-only link" -> buildShareUrl(...,{lock:true})
+  setActive(active) OVERRIDDEN: while _locked, setActive(false) is a no-op so the
+    crop survives the mutex. The mutex (_mutexActivation) calls setActive(false) on
+    every OTHER tool when one activates; without this guard, turning on the Slice
+    tool (or Hide/Select/Measure) tore down the box and silently dropped the crop.
+    The button-click and "reset" guards only cover user paths; this covers mutex.
+NOTE: UI-level lock only. Dev tools can still bypass any client viewer.
+True enforcement = serve a pre-cropped model from the server.
+
+
+------------------------------------------------------------
+BUILD / TEST / DEPLOY
+------------------------------------------------------------
+Test:   npm test            (vitest run, 53 tests)
+Build:  npm run build        (rollup prod+dev -> dist/*.es.js, copies messages.js + css)
+        - app/index.html is NOT bundled (served directly); editing it needs no rebuild.
+        - Changing anything under src/ DOES need a rebuild.
+
+
+------------------------------------------------------------
+KNOWN GOTCHAS
+------------------------------------------------------------
+  - Largest model file 68MB < GitHub 100MB hard limit; total ~389MB < 1GB Pages limit.
+  - .nojekyll at root is required (otherwise Pages/Jekyll can skip files).
+  - All app assets are local (app/lib: fontawesome, tippy, popper) - no CDN deps.
+  - The Slice counter now excludes box planes (was showing 6 when only the box was active).
+  - Generate share links from the LIVE url; hard-refresh once if a browser cached an old page.
+
+
+------------------------------------------------------------
+BUG LOG (symptom / cause / fix)
+------------------------------------------------------------
+  Wrong files loaded from share link
+    cause: getRequestParams parsed location.href -> hash bled into projectId
+    fix:   parse location.search only
+  Box never applied on live site
+    cause: applied while models still loading (race with auto-load)
+    fix:   poll scene.models, then apply
+  Flaky "Unsupported .XKT version" / corrupt loads
+    cause: per-load ?t=timestamp cache-buster fought GitHub CDN
+    fix:   removed cache-buster
+  Lock bypassed by Clear Slices / Flip / Disable / Reset
+    cause: plugin operates on the global scene.sectionPlanes pool
+    fix:   isolate by id prefix; box survives reset while locked
+  Lock bypassed by toggling another tool (Slice/Hide/Select/Measure) on/off
+    cause: mutex calls SectionBoxTool.setActive(false) when another tool activates;
+           the deactivate handler destroyed the crop -> view-only restriction gone
+    fix:   override setActive(): while _locked, setActive(false) is ignored
+
+============================================================

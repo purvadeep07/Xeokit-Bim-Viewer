@@ -14,9 +14,21 @@ class Server {
      *
      * @param {*} [cfg] Server configuration.
      * @param {String} [cfg.dataDir] Base directory for content.
+     * @param {Boolean} [cfg.cacheBust] When true, appends a per-session timestamp query to content
+     * URLs so the browser fetches the latest files instead of a cached copy. Used so a shared link
+     * reflects the current model each time it is opened.
      */
     constructor(cfg = {}) {
         this._dataDir = cfg.dataDir || "";
+        this._cacheBustSuffix = cfg.cacheBust ? ("?t=" + Date.now()) : "";
+    }
+
+    /**
+     * Appends the cache-busting suffix (if enabled) to a content URL.
+     * @private
+     */
+    _url(url) {
+        return url + this._cacheBustSuffix;
     }
 
     /**
@@ -27,7 +39,7 @@ class Server {
      */
     getProjects(done, error) {
         const url = this._dataDir + "/projects/index.json";
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
     /**
@@ -39,7 +51,7 @@ class Server {
      */
     getProject(projectId, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/index.json";
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
     /**
@@ -52,7 +64,7 @@ class Server {
      */
     getMetadata(projectId, modelId, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/metadata.json";
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
     /**
@@ -65,7 +77,7 @@ class Server {
      */
     getGeometry(projectId, modelId, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/geometry.xkt";
-        utils.loadArraybuffer(url, done, error);
+        utils.loadArraybuffer(this._url(url), done, error);
     }
 
     /**
@@ -79,7 +91,7 @@ class Server {
      */
     getObjectInfo(projectId, modelId, objectId, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/props/" + objectId + ".json";
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
     /**
@@ -92,7 +104,7 @@ class Server {
      */
     getIssues(projectId, modelId, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/issues.json";
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
 
@@ -110,7 +122,7 @@ class Server {
      */
     getSplitModelManifest(projectId, modelId, manifestName, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/" + manifestName;
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
     /**
@@ -124,7 +136,7 @@ class Server {
      */
     getSplitModelMetadata(projectId, modelId, metadataFileName, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/" + metadataFileName;
-        utils.loadJSON(url, done, error);
+        utils.loadJSON(this._url(url), done, error);
     }
 
     /**
@@ -138,7 +150,7 @@ class Server {
      */
     getSplitModelGeometry(projectId, modelId, geometryFileName, done, error) {
         const url = this._dataDir + "/projects/" + projectId + "/models/" + modelId + "/" + geometryFileName;
-        utils.loadArraybuffer(url, done, error);
+        utils.loadArraybuffer(this._url(url), done, error);
     }
 }
 

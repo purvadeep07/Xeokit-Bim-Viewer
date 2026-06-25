@@ -764,6 +764,45 @@
     color: #99A4AD;
 }
 
+/* Section Box tool: its pull-down menu button mirrors the Slice tool's. */
+.xeokit-sectionBox-menu-button {
+    opacity: 1.0;
+    border-radius: 5px;
+    border: 0;
+    color: black;
+    padding: 1px;
+    margin: 0;
+    margin-left: 10px;
+    width: 20px;
+    height: 20px;
+    float: right;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    line-height: 1.50;
+}
+
+.xeokit-sectionBox-menu-button.disabled {
+    color: #99A4AD;
+    border: 0;
+}
+
+.xeokit-sectionBox-menu-button.active {
+    color: #fff;
+    border-color: #ebebeb;
+}
+
+.xeokit-sectionBox-menu-button:hover {
+    color: #477dca;
+}
+
+.xeokit-sectionBox-menu-button.active:hover {
+    color: white;
+}
+
+.xeokit-sectionBox-menu-button.disabled:hover {
+    color: #99A4AD;
+}
+
 .xeokit-arrow-up {
     width: 0;
     height: 0;
