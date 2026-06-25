@@ -122001,6 +122001,26 @@ class SectionBoxTool extends Controller {
     }
 
     /**
+     * Activates or deactivates the Section Box tool.
+     *
+     * Overrides {@link Controller#setActive} to pin a view-only (locked) crop:
+     * while locked, deactivation is ignored so the crop survives the mutex that
+     * deactivates every other tool when any toolbar tool (Slice, Hide, Select,
+     * Measure…) is activated. Without this, turning on another tool would call
+     * setActive(false) here, tear down the six section planes, and silently lift
+     * the view-only restriction. The button-click and "reset" guards only cover
+     * user-driven paths; this covers the programmatic (mutex) path too.
+     *
+     * @param {Boolean} active
+     */
+    setActive(active) {
+        if (!active && this._locked) {
+            return;
+        }
+        super.setActive(active);
+    }
+
+    /**
      * Crop to the given box, activating the tool. Used when applying a shared link.
      * @param {{min:Number[], max:Number[]}} box
      * @param {Boolean} [locked=false] View-only: hide handles and disable resizing.
