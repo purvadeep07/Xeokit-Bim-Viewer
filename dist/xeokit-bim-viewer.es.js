@@ -78704,7 +78704,7 @@ class SectionCaps {
 
                             cap3D.push(triangle);
                         }
-                        arr.push(cap3D);
+                        arr.push(this._clipCapTrianglesToBox(cap3D, plane, planes, modelOrigin));
                     });
                     caps.set(segmentId, arr);
                 });
@@ -78801,10 +78801,56 @@ class SectionCaps {
                 });
                 //#endregion
             });
-            
+
         });
 
     }
+
+    // --- BEGIN section-box cap clipping patch (xeokit-bim-viewer) ---
+    // Clip each cap triangle to the OTHER active section planes so a Section Box
+    // face's cap does not protrude past the box. Cap vertices are stored relative
+    // to modelOrigin; a point is kept where dot(dir, v - posRel) >= 0 (inward
+    // normal keeps the interior). Unit-tested reference: src/sectionCapClipUtils.js.
+    _clipCapTrianglesToBox(cap3D, plane, planes, modelOrigin) {
+        const others = planes.filter(p => p !== plane);
+        if (others.length === 0) {
+            return cap3D;
+        }
+        const EPS = 1e-9;
+        const clip = others.map(p => ({
+            dir: p.dir,
+            posRel: [p.pos[0] - modelOrigin[0], p.pos[1] - modelOrigin[1], p.pos[2] - modelOrigin[2]]
+        }));
+        const clipPoly = (poly, dir, posRel) => {
+            const out = [];
+            for (let i = 0; i < poly.length; i++) {
+                const a = poly[i], b = poly[(i + 1) % poly.length];
+                const da = dir[0]*(a[0]-posRel[0]) + dir[1]*(a[1]-posRel[1]) + dir[2]*(a[2]-posRel[2]);
+                const db = dir[0]*(b[0]-posRel[0]) + dir[1]*(b[1]-posRel[1]) + dir[2]*(b[2]-posRel[2]);
+                const aIn = da >= -1e-9, bIn = db >= -1e-9;
+                if (aIn) out.push(a);
+                if (aIn !== bIn) {
+                    const denom = da - db;
+                    const t = Math.abs(denom) < EPS ? 0 : da / denom;
+                    out.push([a[0]+t*(b[0]-a[0]), a[1]+t*(b[1]-a[1]), a[2]+t*(b[2]-a[2])]);
+                }
+            }
+            return out;
+        };
+        const result = [];
+        for (let i = 0; i < cap3D.length; i++) {
+            let poly = cap3D[i];
+            for (let c = 0; c < clip.length && poly.length >= 3; c++) {
+                poly = clipPoly(poly, clip[c].dir, clip[c].posRel);
+            }
+            if (poly.length < 3) continue;
+            for (let k = 1; k < poly.length - 1; k++) {
+                result.push([poly[0], poly[k], poly[k + 1]]);
+            }
+        }
+        return result;
+    }
+    // --- END section-box cap clipping patch ---
 
     _doesPlaneIntersectBoundingBox(bb, plane) {
         const min = [bb[0], bb[1], bb[2]];
@@ -125691,7 +125737,16 @@ class BIMViewer extends Controller {
                 const noCapTypes = new Set(["IfcRoof", "IfcSpace", "IfcOpeningElement",
                     "IfcDoor", "IfcWindow", "IfcFurnishingElement", "IfcAnnotation",
                     "IfcSite", "IfcBuilding", "IfcBuildingStorey", "IfcProject"]);
-                const capMaterial = new PhongMaterial(viewer.scene, { backfaces: true });
+                // Medium grey so cut surfaces read clearly against the (mostly white)
+                // model under the bright ambient + camera headlight. Specular killed to
+                // avoid white blow-out highlights on the flat cap faces.
+                const capMaterial = new PhongMaterial(viewer.scene, {
+                    backfaces: true,
+                    diffuse: [0.45, 0.45, 0.45],
+                    ambient: [0.45, 0.45, 0.45],
+                    specular: [0, 0, 0],
+                    emissive: [0.08, 0.08, 0.08]
+                });
                 const objects = sceneModel.objects;
                 for (const objectId in objects) {
                     const object = objects[objectId];

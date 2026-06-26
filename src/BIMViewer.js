@@ -480,7 +480,16 @@ class BIMViewer extends Controller {
                 const noCapTypes = new Set(["IfcRoof", "IfcSpace", "IfcOpeningElement",
                     "IfcDoor", "IfcWindow", "IfcFurnishingElement", "IfcAnnotation",
                     "IfcSite", "IfcBuilding", "IfcBuildingStorey", "IfcProject"]);
-                const capMaterial = new PhongMaterial(viewer.scene, { backfaces: true });
+                // Medium grey so cut surfaces read clearly against the (mostly white)
+                // model under the bright ambient + camera headlight. Specular killed to
+                // avoid white blow-out highlights on the flat cap faces.
+                const capMaterial = new PhongMaterial(viewer.scene, {
+                    backfaces: true,
+                    diffuse: [0.45, 0.45, 0.45],
+                    ambient: [0.45, 0.45, 0.45],
+                    specular: [0, 0, 0],
+                    emissive: [0.08, 0.08, 0.08]
+                });
                 const objects = sceneModel.objects;
                 for (const objectId in objects) {
                     const object = objects[objectId];

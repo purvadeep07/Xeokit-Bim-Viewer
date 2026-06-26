@@ -11,6 +11,7 @@
     "/dist/messages.js"
   ],
   "scripts": {
+    "postinstall": "patch-package",
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "rollup --config rollup.config.js && rollup --config rollup.dev.config.js && copyfiles -f locales/messages.js ./dist && copyfiles -f xeokit-bim-viewer.css ./dist",
@@ -66,6 +67,7 @@
     "copyfiles": "^2.4.1",
     "esdoc": "^1.1.0",
     "esdoc-standard-plugin": "^1.0.0",
+    "patch-package": "^8.0.1",
     "rollup": "^4.39.0",
     "rollup-plugin-import-css": "^3.5.8",
     "vitest": "^2.1.0"
