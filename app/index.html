@@ -208,8 +208,11 @@
                 camera.up = payload.cam.up;
             }
             if (payload.box) {
-                // lock=1 in the link => view-only crop (handles hidden, no resizing).
-                const locked = (requestParams.lock === "1" || requestParams.lock === "true");
+                // View-only when the lock rides INSIDE the payload (can't be removed by
+                // editing the visible URL). A bare &lock=1 is still honoured as an
+                // additive override - it can only add a lock, never remove one.
+                const locked = !!payload.lock
+                    || requestParams.lock === "1" || requestParams.lock === "true";
                 bimViewer.setSectionBox(payload.box, locked);
             }
         }
