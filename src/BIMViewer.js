@@ -1,4 +1,4 @@
-import {BCFViewpointsPlugin, FastNavPlugin, math, stats, Viewer, PhongMaterial} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
+import {BCFViewpointsPlugin, FastNavPlugin, math, stats, Viewer, PhongMaterial, DirLight} from "@xeokit/xeokit-sdk/dist/xeokit-sdk.es.js";
 
 import {Controller} from "./Controller.js";
 import {BusyModal} from "./BusyModal.js";
@@ -617,31 +617,43 @@ class BIMViewer extends Controller {
         const scene = this.viewer.scene;
 
         // Lighting: the default DirLights point downward, so surfaces revealed by a section
-        // cut - room interiors and inward-facing walls/slabs - face away from them and receive
-        // only ambient light, reading as flat dark grey. Raising the ambient intensity lifts
-        // those exposed interior faces to match the exterior without washing out shading (the
-        // DirLights + SAO still provide depth). See section-cut interiors on Bungalow43.
+        // cut - room interiors and inward-facing walls/slabs - face away from them and read as
+        // flat dark grey. Two complementary tweaks fix this:
+        //   1. Raise the AmbientLight so shadowed interior faces aren't starved of light.
+        //   2. Add a view-space "headlight" DirLight that follows the camera, so whichever
+        //      interior surface you look at is lit regardless of its orientation - the ambient
+        //      boost alone leaves walls that face away from the world DirLights grey.
+        // The world DirLights + SAO still provide depth. See section interiors on Bungalow43.
         //
-        // xeokit creates its default lights lazily on the first render, so scene.lights is
-        // still empty here at construction time. Apply the boost on the first tick - once the
-        // defaults exist - then unsubscribe so we don't re-trigger a render every frame.
+        // xeokit normally creates its default lights during Viewer construction, but guard for a
+        // future SDK creating them lazily: apply on the first tick once the AmbientLight exists,
+        // and only add the headlight then so we never suppress the auto-created default lights.
         const ambientIntensity = 1.0;
-        const boostAmbient = () => {
-            let applied = false;
+        const headlightIntensity = 0.5;
+        let headlightAdded = false;
+        const setupLighting = () => {
+            let ambientFound = false;
             for (const lightId in scene.lights) {
                 const light = scene.lights[lightId];
                 if (light.type === "AmbientLight") {
                     light.intensity = ambientIntensity;
-                    applied = true;
+                    ambientFound = true;
                 }
             }
-            return applied;
+            if (ambientFound && !headlightAdded) {
+                new DirLight(scene, {
+                    dir: [0.2, -0.4, -1.0], // view space: into the screen, slight top-right key
+                    color: [1.0, 1.0, 1.0],
+                    intensity: headlightIntensity,
+                    space: "view"
+                });
+                headlightAdded = true;
+            }
+            return ambientFound;
         };
-        // Defensive: if a future SDK creates the default lights lazily (after construction),
-        // apply the boost on the first tick once they exist, then unsubscribe.
-        if (!boostAmbient()) {
+        if (!setupLighting()) {
             const tickSub = scene.on("tick", () => {
-                if (boostAmbient()) {
+                if (setupLighting()) {
                     scene.off(tickSub);
                 }
             });
