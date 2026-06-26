@@ -9,7 +9,8 @@ import {
 const sampleState = {
     m: ["architectural", "electrical"],
     box: {min: [0, 0, 0], max: [10, 5, 8]},
-    cam: {eye: [1, 2, 3], look: [0, 0, 0], up: [0, 1, 0], projection: "perspective"}
+    cam: {eye: [1, 2, 3], look: [0, 0, 0], up: [0, 1, 0], projection: "perspective"},
+    lock: true // view-only flag lives INSIDE the encoded payload, not a visible URL param
 };
 
 describe("encodeShareState / decodeShareState", () => {
@@ -39,16 +40,12 @@ describe("buildShareUrl / parseShareUrl", () => {
         expect(url).toContain("#sectionBox=" + encoded);
     });
 
-    it("adds &lock=1 before the hash when the lock option is set", () => {
-        const encoded = encodeShareState(sampleState);
-        const url = buildShareUrl("https://host/app/index.html", "Clinic", encoded, {lock: true});
-        expect(url).toBe("https://host/app/index.html?projectId=Clinic&lock=1#sectionBox=" + encoded);
-    });
-
-    it("omits the lock flag by default", () => {
-        const encoded = encodeShareState(sampleState);
+    it("keeps the lock flag out of the visible URL (it rides inside the payload)", () => {
+        const encoded = encodeShareState(sampleState); // sampleState.lock === true
         const url = buildShareUrl("https://host/app/index.html", "Clinic", encoded);
         expect(url).not.toContain("lock=");
+        // ...but the decoded payload still carries it:
+        expect(parseShareUrl(url).payload.lock).toBe(true);
     });
 
     it("strips any pre-existing query/hash from the base URL", () => {

@@ -51,20 +51,21 @@ export function decodeShareState(str) {
 }
 
 /**
- * Build a shareable viewer URL: `<base>?projectId=<id>[&lock=1]#sectionBox=<encoded>`.
+ * Build a shareable viewer URL: `<base>?projectId=<id>#sectionBox=<encoded>`.
  * Any pre-existing query/hash on `baseUrl` is dropped.
+ *
+ * The view-only flag is NOT a visible query param (that could just be deleted) —
+ * it lives inside the encoded payload (`state.lock`), so it can't be toggled off
+ * by editing the obvious parts of the URL.
  *
  * @param {String} baseUrl e.g. window.location.href or ".../app/index.html"
  * @param {String} projectId
  * @param {String} encoded Output of encodeShareState
- * @param {Object} [opts]
- * @param {Boolean} [opts.lock] When true, adds `&lock=1` so the opened viewer is view-only.
  * @returns {String}
  */
-export function buildShareUrl(baseUrl, projectId, encoded, opts) {
+export function buildShareUrl(baseUrl, projectId, encoded) {
     const base = baseUrl.split("#")[0].split("?")[0];
-    const lock = (opts && opts.lock) ? "&lock=1" : "";
-    return base + "?projectId=" + encodeURIComponent(projectId) + lock + "#sectionBox=" + encoded;
+    return base + "?projectId=" + encodeURIComponent(projectId) + "#sectionBox=" + encoded;
 }
 
 /**

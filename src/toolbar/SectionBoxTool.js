@@ -193,8 +193,13 @@ class SectionBoxTool extends Controller {
                 projection: camera.projection
             }
         };
+        if (locked) {
+            // Embed the lock in the payload (not a visible &lock=1) so it can't be
+            // removed by editing the obvious parts of the URL.
+            state.lock = true;
+        }
         const projectId = this.bimViewer.getLoadedProjectId();
-        const url = buildShareUrl(window.location.href, projectId, encodeShareState(state), {lock: !!locked});
+        const url = buildShareUrl(window.location.href, projectId, encodeShareState(state));
         const msgKey = locked ? "sectionBox.viewOnlyLinkCopied" : "sectionBox.linkCopied";
         const done = () => this._flash(this.viewer.localeService.translate(msgKey) || (locked ? "View-only link copied" : "Share link copied"));
         if (navigator.clipboard && navigator.clipboard.writeText) {

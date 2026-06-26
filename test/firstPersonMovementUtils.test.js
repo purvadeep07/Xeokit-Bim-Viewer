@@ -3,7 +3,8 @@ import {
     movementAxes,
     deriveFirstPersonConfig,
     horizontalForward,
-    integrateGravity
+    integrateGravity,
+    rightVector
 } from "../src/firstPersonMovementUtils.js";
 
 describe("movementAxes", () => {
@@ -69,6 +70,26 @@ describe("horizontalForward", () => {
 
     it("returns null when looking straight up or down", () => {
         expect(horizontalForward([0, 0, 0], [0, 9, 0])).toBeNull();
+    });
+});
+
+describe("rightVector", () => {
+    it("returns screen-right (-X) for a +Z forward", () => {
+        expect(rightVector([0, 0, 1])).toEqual([-1, 0, 0]);
+    });
+
+    it("returns +Z for a +X forward", () => {
+        const r = rightVector([1, 0, 0]);
+        expect(r[2]).toBeCloseTo(1);
+        expect(Math.abs(r[0])).toBeCloseTo(0); // -0 and +0 are both valid
+        expect(r[1]).toBeCloseTo(0);
+    });
+
+    it("is perpendicular to forward and unit length for a 45-degree forward", () => {
+        const f = [Math.SQRT1_2, 0, Math.SQRT1_2];
+        const r = rightVector(f);
+        expect(r[0] * f[0] + r[2] * f[2]).toBeCloseTo(0); // perpendicular
+        expect(Math.sqrt(r[0] * r[0] + r[2] * r[2])).toBeCloseTo(1); // unit length
     });
 });
 

@@ -67,6 +67,21 @@ export function horizontalForward(eye, look) {
 }
 
 /**
+ * Screen-right unit vector in the horizontal (XZ) plane for a given
+ * horizontal forward vector.
+ *
+ * Matches xeokit's pan convention: for a camera looking along +Z, screen-right
+ * is -X (the SDK's keyboard PAN_RIGHT maps to a negative panDeltaX). So
+ * right = [-fwd.z, 0, fwd.x].
+ *
+ * @param {Number[]} fwd Unit horizontal forward [x,0,z] (e.g. from horizontalForward)
+ * @returns {Number[]} Unit screen-right [x,0,z]
+ */
+export function rightVector(fwd) {
+    return [-fwd[2], 0, fwd[0]];
+}
+
+/**
  * Integrate one frame of gravity, clamping the eye to floor + eyeHeight.
  *
  * @param {Number} y         Current eye Y

@@ -4,7 +4,8 @@ import {
     movementAxes,
     deriveFirstPersonConfig,
     horizontalForward,
-    integrateGravity
+    integrateGravity,
+    rightVector
 } from "./firstPersonMovementUtils.js";
 
 /**
@@ -181,7 +182,8 @@ class FirstPersonControls extends Controller {
         if (!this._gravityOn) {
             // FLY: move along camera-local axes (forward follows look incl. pitch).
             if (ax.forward || ax.right) {
-                camera.pan([ax.right * speed, 0, -ax.forward * speed]);
+                // pan[0] is screen-LEFT in xeokit (PAN_RIGHT => negative panDeltaX), so negate ax.right to make D = right
+                camera.pan([-ax.right * speed, 0, -ax.forward * speed]);
             }
             if (ax.up) {
                 const dy = ax.up * speed;
@@ -193,7 +195,7 @@ class FirstPersonControls extends Controller {
             // WALK: move in the horizontal plane only, then apply gravity.
             const fwd = horizontalForward(camera.eye, camera.look);
             if (fwd && (ax.forward || ax.right)) {
-                const right = [fwd[2], 0, -fwd[0]]; // screen-right in the XZ plane
+                const right = rightVector(fwd); // screen-right in the XZ plane (xeokit pan convention)
                 const mx = (fwd[0] * ax.forward + right[0] * ax.right) * speed;
                 const mz = (fwd[2] * ax.forward + right[2] * ax.right) * speed;
                 const eye = camera.eye, look = camera.look;
@@ -262,6 +264,13 @@ class FirstPersonControls extends Controller {
             this._hud.parentNode.removeChild(this._hud);
         }
         this._hud = null;
+    }
+
+    destroy() {
+        if (this._fpActive) {
+            this._exit();
+        }
+        super.destroy();
     }
 }
 

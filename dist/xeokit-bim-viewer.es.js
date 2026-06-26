@@ -121841,20 +121841,21 @@ function decodeShareState(str) {
 }
 
 /**
- * Build a shareable viewer URL: `<base>?projectId=<id>[&lock=1]#sectionBox=<encoded>`.
+ * Build a shareable viewer URL: `<base>?projectId=<id>#sectionBox=<encoded>`.
  * Any pre-existing query/hash on `baseUrl` is dropped.
+ *
+ * The view-only flag is NOT a visible query param (that could just be deleted) —
+ * it lives inside the encoded payload (`state.lock`), so it can't be toggled off
+ * by editing the obvious parts of the URL.
  *
  * @param {String} baseUrl e.g. window.location.href or ".../app/index.html"
  * @param {String} projectId
  * @param {String} encoded Output of encodeShareState
- * @param {Object} [opts]
- * @param {Boolean} [opts.lock] When true, adds `&lock=1` so the opened viewer is view-only.
  * @returns {String}
  */
-function buildShareUrl(baseUrl, projectId, encoded, opts) {
+function buildShareUrl(baseUrl, projectId, encoded) {
     const base = baseUrl.split("#")[0].split("?")[0];
-    const lock = (opts && opts.lock) ? "&lock=1" : "";
-    return base + "?projectId=" + encodeURIComponent(projectId) + lock + "#sectionBox=" + encoded;
+    return base + "?projectId=" + encodeURIComponent(projectId) + "#sectionBox=" + encoded;
 }
 
 /**
@@ -122070,8 +122071,13 @@ class SectionBoxTool extends Controller {
                 projection: camera.projection
             }
         };
+        if (locked) {
+            // Embed the lock in the payload (not a visible &lock=1) so it can't be
+            // removed by editing the obvious parts of the URL.
+            state.lock = true;
+        }
         const projectId = this.bimViewer.getLoadedProjectId();
-        const url = buildShareUrl(window.location.href, projectId, encodeShareState(state), {lock: !!locked});
+        const url = buildShareUrl(window.location.href, projectId, encodeShareState(state));
         const msgKey = locked ? "sectionBox.viewOnlyLinkCopied" : "sectionBox.linkCopied";
         const done = () => this._flash(this.viewer.localeService.translate(msgKey) || (locked ? "View-only link copied" : "Share link copied"));
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -125820,6 +125826,49 @@ class BIMViewer extends Controller {
     _customizeViewer() {
 
         const scene = this.viewer.scene;
+
+        // Lighting: the default DirLights point downward, so surfaces revealed by a section
+        // cut - room interiors and inward-facing walls/slabs - face away from them and read as
+        // flat dark grey. Two complementary tweaks fix this:
+        //   1. Raise the AmbientLight so shadowed interior faces aren't starved of light.
+        //   2. Add a view-space "headlight" DirLight that follows the camera, so whichever
+        //      interior surface you look at is lit regardless of its orientation - the ambient
+        //      boost alone leaves walls that face away from the world DirLights grey.
+        // The world DirLights + SAO still provide depth. See section interiors on Bungalow43.
+        //
+        // xeokit normally creates its default lights during Viewer construction, but guard for a
+        // future SDK creating them lazily: apply on the first tick once the AmbientLight exists,
+        // and only add the headlight then so we never suppress the auto-created default lights.
+        const ambientIntensity = 1.0;
+        const headlightIntensity = 0.5;
+        let headlightAdded = false;
+        const setupLighting = () => {
+            let ambientFound = false;
+            for (const lightId in scene.lights) {
+                const light = scene.lights[lightId];
+                if (light.type === "AmbientLight") {
+                    light.intensity = ambientIntensity;
+                    ambientFound = true;
+                }
+            }
+            if (ambientFound && !headlightAdded) {
+                new DirLight(scene, {
+                    dir: [0.2, -0.4, -1], // view space: into the screen, slight top-right key
+                    color: [1.0, 1.0, 1.0],
+                    intensity: headlightIntensity,
+                    space: "view"
+                });
+                headlightAdded = true;
+            }
+            return ambientFound;
+        };
+        if (!setupLighting()) {
+            const tickSub = scene.on("tick", () => {
+                if (setupLighting()) {
+                    scene.off(tickSub);
+                }
+            });
+        }
 
         // Emphasis effects
 

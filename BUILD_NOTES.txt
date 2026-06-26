@@ -123,7 +123,8 @@ Payload (geometry NEVER included -> stays "live"):
   state = {
     m:   [modelId, ...],
     box: { min:[x,y,z], max:[x,y,z] },
-    cam: { eye:[3], look:[3], up:[3], projection:"perspective"|"ortho" }
+    cam: { eye:[3], look:[3], up:[3], projection:"perspective"|"ortho" },
+    lock?: true   // view-only - lives INSIDE the encoded payload (see lock section)
   }
 
 encodeShareState(state):
@@ -132,9 +133,10 @@ encodeShareState(state):
 decodeShareState(str): reverse; JSON.parse(decodeURIComponent(atob(fromUrlSafe)))
   returns null on any malformed input (try/catch)
 
-buildShareUrl(base, projectId, encoded, {lock}):
+buildShareUrl(base, projectId, encoded):
   strip base of any ?/# , then:
-  <base>?projectId=<enc(projectId)>[&lock=1]#sectionBox=<encoded>
+  <base>?projectId=<enc(projectId)>#sectionBox=<encoded>
+  (no &lock=1 - the lock is carried inside <encoded>, not a removable query param)
 
 parseShareUrl(href):
   box regex: /[#&]sectionBox=([^&]*)/
@@ -148,14 +150,16 @@ App startup (app/index.html):
     applyShareLink: POLL scene.models every 500ms until all payload.m exist
       (after ~2s actively loadModel any still missing; give up ~30s) then:
     finishShareLink: set camera (eye/look/up/projection),
-      locked = (requestParams.lock === "1" || "true"),
+      locked = !!payload.lock || requestParams.lock === "1"/"true",
+        // payload.lock is the real source; bare &lock=1 is an ADDITIVE override only
+        // (it can add a lock, never remove one)
       bimViewer.setSectionBox(payload.box, locked)
   WHY POLL: loadProject's auto-load is async; applying too early raced it and
   the box/camera never stuck on the slower live site.
 
 
 ------------------------------------------------------------
-VIEW-ONLY LOCK  (&lock=1)
+VIEW-ONLY LOCK  (lock carried inside the payload)
 ------------------------------------------------------------
 SectionBox:  _visible, _locked; _applyVisibility():
   wire.visible = _visible
@@ -163,7 +167,9 @@ SectionBox:  _visible, _locked; _applyVisibility():
   _handleDown early-returns when _locked
 SectionBoxTool:
   setBox(box, locked) stores _locked; button click ignored when _locked;
-  "reset" ignored when _locked; menu item "Copy view-only link" -> buildShareUrl(...,{lock:true})
+  "reset" ignored when _locked; menu "Copy view-only link" sets state.lock=true
+    INSIDE the payload (buildShareUrl emits NO &lock=1), so the lock can't be
+    removed by deleting a visible URL param.
   setActive(active) OVERRIDDEN: while _locked, setActive(false) is a no-op so the
     crop survives the mutex. The mutex (_mutexActivation) calls setActive(false) on
     every OTHER tool when one activates; without this guard, turning on the Slice
@@ -211,5 +217,8 @@ BUG LOG (symptom / cause / fix)
     cause: mutex calls SectionBoxTool.setActive(false) when another tool activates;
            the deactivate handler destroyed the crop -> view-only restriction gone
     fix:   override setActive(): while _locked, setActive(false) is ignored
+  Lock bypassed by deleting &lock=1 from the link
+    cause: lock was a visible query param anyone could remove
+    fix:   carry lock INSIDE the encoded payload (state.lock); no visible flag
 
 ============================================================
