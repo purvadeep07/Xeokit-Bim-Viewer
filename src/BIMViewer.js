@@ -616,6 +616,37 @@ class BIMViewer extends Controller {
 
         const scene = this.viewer.scene;
 
+        // Lighting: the default DirLights point downward, so surfaces revealed by a section
+        // cut - room interiors and inward-facing walls/slabs - face away from them and receive
+        // only ambient light, reading as flat dark grey. Raising the ambient intensity lifts
+        // those exposed interior faces to match the exterior without washing out shading (the
+        // DirLights + SAO still provide depth). See section-cut interiors on Bungalow43.
+        //
+        // xeokit creates its default lights lazily on the first render, so scene.lights is
+        // still empty here at construction time. Apply the boost on the first tick - once the
+        // defaults exist - then unsubscribe so we don't re-trigger a render every frame.
+        const ambientIntensity = 1.0;
+        const boostAmbient = () => {
+            let applied = false;
+            for (const lightId in scene.lights) {
+                const light = scene.lights[lightId];
+                if (light.type === "AmbientLight") {
+                    light.intensity = ambientIntensity;
+                    applied = true;
+                }
+            }
+            return applied;
+        };
+        // Defensive: if a future SDK creates the default lights lazily (after construction),
+        // apply the boost on the first tick once they exist, then unsubscribe.
+        if (!boostAmbient()) {
+            const tickSub = scene.on("tick", () => {
+                if (boostAmbient()) {
+                    scene.off(tickSub);
+                }
+            });
+        }
+
         // Emphasis effects
 
         scene.xrayMaterial.fill = false;
